@@ -13,6 +13,7 @@ export class BookingController {
   @Patch('bookings/:id/cancel') cancel(@Param('id') id: string, @Body() body: CancelBookingDto) { return this.bookings.cancel(id, body.phone); }
   @UseGuards(AdminGuard) @Get('admin/bookings') list(@Query('date') date: string) { return this.bookings.adminAppointments(date); }
   @UseGuards(AdminGuard) @Patch('admin/bookings/:id') status(@Param('id') id: string, @Body() body: StatusDto) { return this.bookings.updateStatus(id, body.status as AppointmentStatus); }
+  @UseGuards(AdminGuard) @Get('admin/blocks') blocks(@Query('date') date: string) { return this.bookings.blocks(date); }
   @UseGuards(AdminGuard) @Post('admin/blocks') block(@Body() body: BlockDto) { return this.bookings.block(body); }
   @UseGuards(AdminGuard) @Delete('admin/blocks/:id') unblock(@Param('id') id: string) { return this.bookings.unblock(id); }
 }

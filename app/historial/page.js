@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 
-const dateLabel = (value) => new Intl.DateTimeFormat("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date(`${value}T12:00:00`));
+const dateLabel = (value) => new Intl.DateTimeFormat("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date(`${value.slice(0, 10)}T12:00:00`));
 
 export default function HistoryPage() {
   const [phone, setPhone] = useState(""), [appointments, setAppointments] = useState([]), [error, setError] = useState(""), [loading, setLoading] = useState(false);

@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 const today = new Date();
 const iso = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const money = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
-const dateLabel = (value) => new Intl.DateTimeFormat("es-CO", { weekday: "long", day: "numeric", month: "long" }).format(new Date(`${value}T12:00:00`));
+const dateLabel = (value) => new Intl.DateTimeFormat("es-CO", { weekday: "long", day: "numeric", month: "long" }).format(new Date(`${value.slice(0, 10)}T12:00:00`));
 
 function Calendar({ value, onChange }) {
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));

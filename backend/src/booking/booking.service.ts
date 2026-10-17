@@ -10,6 +10,8 @@ import { BlockDto, CreateBookingDto } from './dto/booking.dto';
 const OPEN_SLOTS = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00'];
 const asDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
 const dateKey = (date: Date) => date.toISOString().slice(0, 10);
+// Colombia no tiene horario de verano: la hora de la cita siempre es UTC-5, sin importar dónde corra el servidor.
+const startsAt = (date: Date, time: string) => new Date(`${dateKey(date)}T${time}:00-05:00`).getTime();
 const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
 const fromMinutes = (value: number) => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
 const occupiedSlots = (time: string, duration: number) => Array.from({ length: Math.ceil(duration / 30) }, (_, index) => fromMinutes(minutes(time) + index * 30));
@@ -56,14 +58,19 @@ export class BookingService {
     const booking = await this.prisma.appointment.findUnique({ where: { id }, include: { customer: true, service: true, barber: true } });
     if (!booking || booking.customer.phone !== phone.replace(/\D/g, '')) throw new NotFoundException('No encontramos esa cita.');
     if (booking.status !== AppointmentStatus.CONFIRMED) throw new BadRequestException('Esta cita ya no se puede cancelar.');
-    if (new Date(`${dateKey(booking.date)}T${booking.time}:00`).getTime() - Date.now() < 2 * 60 * 60 * 1000) throw new BadRequestException('La cita solo puede cancelarse con al menos 2 horas de anticipación.');
+    if (startsAt(booking.date, booking.time) - Date.now() < 2 * 60 * 60 * 1000) throw new BadRequestException('La cita solo puede cancelarse con al menos 2 horas de anticipación.');
     const updated = await this.prisma.$transaction(async (tx) => { await tx.scheduleSlot.deleteMany({ where: { appointmentId: id } }); return tx.appointment.update({ where: { id }, data: { status: AppointmentStatus.CANCELLED }, include: { customer: true, service: true, barber: true } }); });
     this.events.emit('booking.cancelled', updated);
     return updated;
   }
 
   adminAppointments(date: string) { return this.prisma.appointment.findMany({ where: { date: asDate(date) }, include: { customer: true, service: true, barber: true }, orderBy: { time: 'asc' } }); }
-  updateStatus(id: string, status: AppointmentStatus) { return this.prisma.appointment.update({ where: { id }, data: { status }, include: { customer: true, service: true, barber: true } }); }
+  async updateStatus(id: string, status: AppointmentStatus) {
+    // Al cancelar se liberan los slots para que el horario vuelva a estar disponible.
+    const updated = await this.prisma.$transaction(async (tx) => { if (status === AppointmentStatus.CANCELLED) await tx.scheduleSlot.deleteMany({ where: { appointmentId: id } }); return tx.appointment.update({ where: { id }, data: { status }, include: { customer: true, service: true, barber: true } }); });
+    if (status === AppointmentStatus.CANCELLED) this.events.emit('booking.cancelled', updated);
+    return updated;
+  }
 
   async block(input: BlockDto) {
     if (!this.validStart(input.time, input.duration)) throw new BadRequestException('El bloqueo está fuera del horario laboral.');
@@ -71,5 +78,6 @@ export class BookingService {
     try { return await this.prisma.scheduleBlock.create({ data: { barberId: input.barberId, date, time: input.time, duration: input.duration, note: input.note, slots: { create: slots.map((time) => ({ barberId: input.barberId, date, time, kind: SlotKind.BLOCK })) } } }); }
     catch (error) { if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new ConflictException('No puedes bloquear un horario ocupado.'); throw error; }
   }
+  blocks(date: string) { return this.prisma.scheduleBlock.findMany({ where: { date: asDate(date) }, orderBy: { time: 'asc' } }); }
   unblock(id: string) { return this.prisma.scheduleBlock.delete({ where: { id } }); }
 }
