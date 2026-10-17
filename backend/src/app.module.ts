@@ -7,6 +7,7 @@ import { BarberModule } from './barber/barber.module';
 import { UserModule } from './user/user.module';
 import { BookingModule } from './booking/booking.module';
 import { NotificationModule } from './notification/notification.module';
+import { PlatformModule } from './platform/platform.module';
 
-@Module({ imports: [ConfigModule.forRoot({ isGlobal: true }), EventEmitterModule.forRoot(), PrismaModule, CatalogModule, BarberModule, UserModule, BookingModule, NotificationModule] })
+@Module({ imports: [ConfigModule.forRoot({ isGlobal: true }), EventEmitterModule.forRoot(), PrismaModule, CatalogModule, BarberModule, UserModule, BookingModule, NotificationModule, PlatformModule] })
 export class AppModule {}

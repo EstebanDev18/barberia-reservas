@@ -100,3 +100,53 @@ model ScheduleSlot {
   @@index([appointmentId])
   @@index([blockId])
 }
+
+// ── BarberOS: barberías que compran licencia del software ──
+enum BarbershopStatus {
+  PENDING_PAYMENT
+  ACTIVE
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  VOIDED
+  ERROR
+}
+
+model Barbershop {
+  id        String           @id @default(cuid())
+  name      String
+  slug      String           @unique
+  ownerName String
+  email     String
+  phone     String
+  city      String
+  plan      String
+  status    BarbershopStatus @default(PENDING_PAYMENT)
+  // La licencia vale mientras paidUntil sea futura; vencida = paidUntil en el pasado.
+  paidUntil DateTime?
+  payments  Payment[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([email])
+}
+
+model Payment {
+  id                    String        @id @default(cuid())
+  reference             String        @unique
+  barbershopId          String
+  barbershop            Barbershop    @relation(fields: [barbershopId], references: [id])
+  plan                  String
+  period                String
+  amountInCents         Int
+  currency              String        @default("COP")
+  // Hoy solo Wompi; el campo deja lugar a otra pasarela para vender fuera de Colombia.
+  provider              String        @default("wompi")
+  providerTransactionId String?
+  status                PaymentStatus @default(PENDING)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+}
