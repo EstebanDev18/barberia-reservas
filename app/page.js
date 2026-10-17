@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { barber, services } from "@/lib/catalog";
 import { api } from "@/lib/api";
-import Barber from "./barber";
 
 const today = new Date();
 const iso = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -33,7 +32,7 @@ export default function Home() {
   const confirm = async (event) => { event.preventDefault(); setLoading(true); setError(""); const response = await api("/bookings", { method: "POST", body: JSON.stringify({ serviceId: service.id, barberId: selectedBarber.id, date, time, ...form }) }); const data = await response.json(); setLoading(false); if (!response.ok) return setError(data.message || "No fue posible confirmar la reserva."); setResult(data); go(5); };
 
   return <main><header className="topbar"><a className="brand" href="#inicio">Legacy <span>barber</span></a><nav><a href="#inicio">Inicio</a><a href="#servicios">Servicios</a><button onClick={() => go(1)}>Reservar</button></nav></header>
-    <section id="inicio" className="hero"><div className="hero-copy"><p className="eyebrow">Barbería de barrio</p><h1>Aparta tu<br />silla.<br /><em>Sin filas.</em></h1><p>Escoge el corte, el barbero y la hora. En un minuto quedas listo, sin cuentos.</p><button className="primary" onClick={() => go(1)}>Aparta tu turno <span>→</span></button></div><div className="hero-visual" onPointerMove={tilt} onPointerLeave={untilt}><div className="sun" /><div className="pole" /><Barber /><p className="neon">LEGACY BARBER</p></div></section>
+    <section id="inicio" className="hero"><div className="hero-copy"><p className="eyebrow">Barbería de barrio</p><h1>Aparta tu<br />silla.<br /><em>Sin filas.</em></h1><p>Escoge el corte, el barbero y la hora. En un minuto quedas listo, sin cuentos.</p><button className="primary" onClick={() => go(1)}>Aparta tu turno <span>→</span></button></div><div className="hero-visual" onPointerMove={tilt} onPointerLeave={untilt}><div className="sun" /><div className="pole" /><figure className="poster"><img src="/night-cuts.webp" width="981" height="576" alt="Barbero cortando de noche en Legacy Barber" /></figure><p className="neon">LEGACY BARBER</p></div></section>
     <div className="tape" aria-hidden="true"><p>{"FADE ✂ BARBA ✂ CORTE CLÁSICO ✂ DISEÑOS ✂ CORTE NIÑO ✂ ".repeat(8)}</p></div>
     <section id="servicios" className="catalog-section"><p className="eyebrow">La carta</p><h2 data-reveal="">Cortes que<br /><em>hablan solos.</em></h2><div className="service-grid">{catalog.map((item, index) => <article className="service-card" data-reveal="" style={{ "--d": `${index * 90}ms` }} key={item.id}><div><h3>{item.name}</h3><p>{item.description}</p></div><div className="service-meta"><span>{item.duration} min</span><strong>{money.format(item.price)}</strong></div></article>)}</div></section>
     <section className="booking" id="reservar"><div className="booking-intro" data-reveal=""><p className="eyebrow">RESERVA EN 4 PASOS</p><h2>Tu turno empieza aquí.</h2><ol>{["Servicio", "Barbero", "Fecha y hora", "Confirmación"].map((name, index) => <li key={name} className={step === index + 1 ? "active" : step > index + 1 ? "done" : ""}><span>{index + 1}</span>{name}</li>)}</ol></div><div className="booking-panel">
