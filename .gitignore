@@ -7,3 +7,5 @@ backend/.env
 backend/dist
 backend/node_modules
 *.db
+qa/node_modules/
+qa/*.png

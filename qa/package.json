@@ -1,0 +1,6 @@
+{
+  "name": "qa",
+  "private": true,
+  "description": "Pruebas E2E con Playwright (canal msedge). Requieren la API en :3001 y la web en :3005. Correr: npm i && node e2e-tenant.mjs",
+  "dependencies": { "playwright": "^1.56.1" }
+}
