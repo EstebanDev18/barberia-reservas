@@ -1,13 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { gsap } from "gsap";
 import { api } from "@/lib/api";
+import { planName } from "../../widgets";
 
 const dateLabel = (value) => new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "long", year: "numeric" }).format(new Date(value));
-const messages = { APPROVED: ["Pago aprobado", "¡Tu barbería ya está activa!"], DECLINED: ["Pago rechazado", "El pago no pasó."], VOIDED: ["Pago anulado", "El pago fue anulado."], ERROR: ["Error en el pago", "Algo falló con el pago."], PENDING: ["Pago en proceso", "Estamos esperando la confirmación."] };
+const messages = { APPROVED: ["✓", "ok", "¡Tu barbería ya está activa!"], DECLINED: ["✕", "bad", "El pago no pasó"], VOIDED: ["✕", "bad", "El pago fue anulado"], ERROR: ["!", "bad", "Algo falló con el pago"], PENDING: ["", "wait", "Confirmando tu pago…"] };
+
+// Confeti al aprobar el pago: piezas de colores de la marca que caen con GSAP.
+function confetti(host) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const colors = ["#c6f24e", "#ff5b3a", "#0e1116", "#ffffff"];
+  for (let i = 0; i < 70; i++) {
+    const piece = document.createElement("i");
+    piece.className = "os-confetti";
+    piece.style.background = colors[i % colors.length];
+    host.appendChild(piece);
+    gsap.fromTo(piece, { x: 0, y: 0, rotate: 0, opacity: 1 }, { x: gsap.utils.random(-420, 420), y: gsap.utils.random(-320, 260), rotate: gsap.utils.random(-540, 540), opacity: 0, duration: gsap.utils.random(1.2, 2.2), ease: "power2.out", onComplete: () => piece.remove() });
+  }
+}
 
 export default function PaymentResult() {
-  const [result, setResult] = useState(null), [error, setError] = useState("");
+  const [result, setResult] = useState(null), [error, setError] = useState(""), cardRef = useRef(null), burst = useRef(null);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     // Wompi vuelve con ?id=<transacción>; el modo demo con ?reference=. El estado siempre lo confirma el backend.
@@ -17,8 +32,18 @@ export default function PaymentResult() {
     poll();
     return () => clearTimeout(timer);
   }, []);
-  const [label, title] = messages[result?.status] || messages.PENDING;
-  return <main className="os-main os-page"><section className="os-result"><p className="eyebrow">{label}</p><h1>{title}</h1>
-    {error ? <p className="form-error">{error}</p> : !result ? <p className="os-lead">Confirmando tu pago…</p> : result.status === "APPROVED" ? <><p className="os-lead"><strong>{result.barbershop.name}</strong> quedó registrada en BarberOS con el plan {result.plan}. Tu licencia está vigente hasta el <strong>{dateLabel(result.barbershop.paidUntil)}</strong>.</p><p className="os-note">Te escribiremos al correo registrado con los siguientes pasos para configurar tu equipo y tu carta.</p></> : result.status === "PENDING" ? <p className="os-lead">Esto puede tardar unos segundos. No cierres esta página.</p> : <><p className="os-lead">Tu barbería no se activó porque el pago no se aprobó. Puedes intentarlo de nuevo.</p><a className="primary" href="/software/registro">Intentar de nuevo <span>→</span></a></>}
+  useEffect(() => {
+    if (!result) return;
+    gsap.fromTo(cardRef.current, { y: 30, opacity: 0, scale: 0.97 }, { y: 0, opacity: 1, scale: 1, duration: 0.6, ease: "back.out(1.4)" });
+    if (result.status === "APPROVED") confetti(burst.current);
+  }, [result?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [icon, tone, title] = error ? ["!", "bad", "No pudimos confirmar el pago"] : messages[result?.status] || messages.PENDING;
+  return <main className="os-center"><div className="os-burst" ref={burst} aria-hidden="true" /><section className="os-status-card" ref={cardRef}>
+    <span className={`os-status-ico ${tone}`}>{icon}</span><h1>{title}</h1>
+    {error ? <><p className="os-muted">{error}</p><a className="os-btn os-btn-dark" href="/software/registro">Volver al registro</a></> : !result || result.status === "PENDING" ? <p className="os-muted">Esto puede tardar unos segundos. No cierres esta página.</p> : result.status === "APPROVED" ? <>
+      <p className="os-muted"><b>{result.barbershop.name}</b> quedó registrada en BarberOS.</p>
+      <dl className="os-review"><div><dt>Plan</dt><dd>{planName(result.plan)} · {result.period === "YEARLY" ? "Anual" : "Mensual"}</dd></div><div><dt>Licencia vigente hasta</dt><dd>{dateLabel(result.barbershop.paidUntil)}</dd></div><div><dt>Referencia</dt><dd className="os-mono">{result.reference}</dd></div></dl>
+      <p className="os-muted">Guarda la referencia. Con el correo que registraste te contactamos para configurar tu equipo y tu carta.</p><a className="os-btn os-btn-main" href="/software">Volver a BarberOS <span className="arrow">→</span></a></> : <>
+      <p className="os-muted">Tu barbería no se activó porque el pago no se aprobó. No se te cobró nada; puedes intentarlo de nuevo.</p><a className="os-btn os-btn-main" href="/software/registro">Intentar de nuevo <span className="arrow">→</span></a></>}
   </section></main>;
 }

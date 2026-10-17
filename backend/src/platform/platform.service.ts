@@ -101,5 +101,5 @@ export class PlatformService {
     return { accessToken: await this.jwt.signAsync({ role: 'platform' }) };
   }
 
-  barbershops() { return this.prisma.barbershop.findMany({ include: { payments: { orderBy: { createdAt: 'desc' }, take: 1 } }, orderBy: { createdAt: 'desc' } }); }
+  barbershops() { return this.prisma.barbershop.findMany({ include: { payments: { orderBy: { createdAt: 'desc' } } }, orderBy: { createdAt: 'desc' } }); }
 }

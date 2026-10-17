@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { api } from "@/lib/api";
+import { Tween, money } from "../widgets";
 
-const money = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 const dateLabel = (value) => new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "short", year: "numeric" }).format(new Date(value));
 const paymentLabel = { APPROVED: "aprobado", PENDING: "pendiente", DECLINED: "rechazado", VOIDED: "anulado", ERROR: "con error" };
 const license = (shop) => shop.status !== "ACTIVE" ? ["pendiente", "Pendiente de pago"] : new Date(shop.paidUntil) > new Date() ? ["activa", `Activa hasta ${dateLabel(shop.paidUntil)}`] : ["vencida", `Vencida el ${dateLabel(shop.paidUntil)}`];
+const filters = [["", "Todas"], ["activa", "Activas"], ["pendiente", "Pendientes"], ["vencida", "Vencidas"]];
 
 export default function PlatformAdmin() {
-  const [password, setPassword] = useState(""), [shops, setShops] = useState(null), [error, setError] = useState("");
+  const [password, setPassword] = useState(""), [shops, setShops] = useState(null), [error, setError] = useState(""), [filter, setFilter] = useState(""), [query, setQuery] = useState("");
   const login = async (event) => {
     event.preventDefault();
     const response = await api("/platform/login", { method: "POST", body: JSON.stringify({ password }) }); const data = await response.json();
@@ -18,8 +19,16 @@ export default function PlatformAdmin() {
     if (!list.ok) return setError("No fue posible cargar las barberías.");
     setShops(await list.json()); setError("");
   };
-  if (!shops) return <main className="os-main os-page"><section className="login-card"><p className="eyebrow">Acceso Barber<b className="os-os">OS</b></p><h1>Panel de la <span className="os-mark">plataforma.</span></h1><p>Barberías registradas, licencias y pagos.</p><form onSubmit={login}><label>Contraseña<input type="password" autoFocus required value={password} onChange={(event) => setPassword(event.target.value)} /></label><button className="primary">Entrar <span>→</span></button></form>{error && <p className="form-error">{error}</p>}<small>Se configura con <code>PLATFORM_PASSWORD</code> en <code>backend/.env</code>.</small></section></main>;
-  const active = shops.filter((shop) => license(shop)[0] === "activa").length;
-  return <main className="os-main os-page"><section className="utility-content os-admin"><p className="eyebrow">Panel Barber<b className="os-os">OS</b></p><h1>Barberías <span className="os-mark">registradas.</span></h1><p className="lead">{shops.length} registradas · {active} con licencia activa</p>
-    {shops.length ? <div className="appointment-list">{shops.map((shop) => { const [kind, text] = license(shop), last = shop.payments[0]; return <article className={`appointment-card os-shop ${kind}`} key={shop.id}><div><p className="eyebrow">{text}</p><h3>{shop.name}</h3><p>{shop.ownerName} · {shop.email} · {shop.phone}<br />{shop.city} · plan {shop.plan}{last && <> · último pago {money.format(last.amountInCents / 100)} ({paymentLabel[last.status]})</>}</p></div><code>/{shop.slug}</code></article>; })}</div> : <p className="empty">Todavía no hay barberías registradas.</p>}</section></main>;
+  if (!shops) return <main className="os-center"><form className="os-status-card" onSubmit={login}><span className="os-status-ico wait">OS</span><p className="os-kicker">Acceso BarberOS</p><h1>Panel de la plataforma</h1><p className="os-muted">Barberías registradas, licencias y pagos.</p><label className="os-field">Contraseña<span className="os-input"><input type="password" autoFocus required value={password} onChange={(event) => setPassword(event.target.value)} /></span></label>{error && <p className="os-error" role="alert">{error}</p>}<div className="os-wiz-actions"><span className="os-muted" style={{ fontSize: 13 }}>Se configura con PLATFORM_PASSWORD.</span><button className="os-btn os-btn-main">Entrar <span className="arrow">→</span></button></div></form></main>;
+  const rows = shops.map((shop) => ({ shop, kind: license(shop) }));
+  const count = (kind) => rows.filter((row) => row.kind[0] === kind).length;
+  const revenue = shops.flatMap((shop) => shop.payments).filter((payment) => payment.status === "APPROVED").reduce((sum, payment) => sum + payment.amountInCents / 100, 0);
+  const visible = rows.filter(({ shop, kind }) => (!filter || kind[0] === filter) && `${shop.name} ${shop.ownerName} ${shop.email} ${shop.city}`.toLowerCase().includes(query.toLowerCase()));
+  return <main className="os-section os-light os-admin">
+    <p className="os-kicker">Panel BarberOS</p><h1>Barberías registradas</h1>
+    <div className="os-kpis"><div><span>Registradas</span><b><Tween value={shops.length} /></b></div><div><span>Con licencia activa</span><b><Tween value={count("activa")} /></b></div><div><span>Pendientes de pago</span><b><Tween value={count("pendiente")} /></b></div><div><span>Ingresos aprobados</span><b><Tween value={revenue} format={(n) => money.format(n)} /></b></div></div>
+    <div className="os-toolbar"><div className="os-pills">{filters.map(([id, label]) => <button type="button" key={id} className={`os-pill ${filter === id ? "sel" : ""}`} onClick={() => setFilter(id)}>{label}</button>)}</div><input className="os-search" type="search" placeholder="Buscar barbería, dueño, correo o ciudad" value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Buscar" /></div>
+    <div className="os-table" role="table" aria-label="Barberías"><div className="os-tr os-th" role="row"><span>Barbería</span><span>Responsable</span><span>Plan</span><span>Licencia</span><span>Último pago</span></div>
+      {visible.length ? visible.map(({ shop, kind: [kind, text] }) => { const last = shop.payments[0]; return <div className="os-tr" role="row" key={shop.id}><span><b>{shop.name}</b><small>{shop.city} · /{shop.slug}</small></span><span>{shop.ownerName}<small>{shop.email} · {shop.phone}</small></span><span className="os-cap">{shop.plan}</span><span><em className={`os-state ${kind}`}>{text}</em></span><span>{last ? <>{money.format(last.amountInCents / 100)}<small>{paymentLabel[last.status]}</small></> : "—"}</span></div>; }) : <p className="os-muted" style={{ padding: 20 }}>No hay barberías con ese filtro.</p>}</div>
+  </main>;
 }
