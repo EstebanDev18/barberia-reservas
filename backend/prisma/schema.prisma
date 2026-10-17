@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AppointmentStatus {
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum SlotKind {
+  BOOKING
+  BLOCK
+}
+
+model Customer {
+  id           String        @id @default(cuid())
+  name         String
+  phone        String        @unique
+  appointments Appointment[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Service {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  duration     Int
+  price        Int
+  description  String
+  active       Boolean       @default(true)
+  appointments Appointment[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Barber {
+  id           String          @id @default(cuid())
+  name         String
+  role         String
+  bio          String
+  active       Boolean         @default(true)
+  appointments Appointment[]
+  blocks       ScheduleBlock[]
+  slots        ScheduleSlot[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model Appointment {
+  id           String            @id @default(cuid())
+  customerId   String
+  serviceId    String
+  barberId     String
+  date         DateTime          @db.Date
+  time         String
+  duration     Int
+  status       AppointmentStatus @default(CONFIRMED)
+  customer     Customer          @relation(fields: [customerId], references: [id])
+  service      Service           @relation(fields: [serviceId], references: [id])
+  barber       Barber            @relation(fields: [barberId], references: [id])
+  slots        ScheduleSlot[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([barberId, date, time])
+  @@index([customerId, date])
+}
+
+model ScheduleBlock {
+  id        String         @id @default(cuid())
+  barberId  String
+  date      DateTime       @db.Date
+  time      String
+  duration  Int
+  note      String
+  barber    Barber         @relation(fields: [barberId], references: [id])
+  slots     ScheduleSlot[]
+  createdAt DateTime       @default(now())
+}
+
+model ScheduleSlot {
+  id            String         @id @default(cuid())
+  barberId      String
+  date          DateTime       @db.Date
+  time          String
+  kind          SlotKind
+  appointmentId String?
+  blockId       String?
+  barber        Barber         @relation(fields: [barberId], references: [id])
+  appointment   Appointment?   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  block         ScheduleBlock? @relation(fields: [blockId], references: [id], onDelete: Cascade)
+
+  @@unique([barberId, date, time])
+  @@index([appointmentId])
+  @@index([blockId])
+}
