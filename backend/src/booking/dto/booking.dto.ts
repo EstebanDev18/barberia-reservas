@@ -5,3 +5,4 @@ export class CreateBookingDto { @IsString() serviceId!: string; @IsString() barb
 export class CancelBookingDto { @Matches(/^\D*(\d\D*){7,}$/) phone!: string; }
 export class StatusDto { @IsIn(['CONFIRMED', 'COMPLETED', 'CANCELLED']) status!: 'CONFIRMED' | 'COMPLETED' | 'CANCELLED'; }
 export class BlockDto { @IsString() barberId!: string; @IsDateString() date!: string; @Matches(/^\d{2}:\d{2}$/) time!: string; @IsInt() @Min(30) duration!: number; @IsString() @MinLength(2) note!: string; }
+export class RescheduleDto { @Matches(/^\D*(\d\D*){7,}$/) phone!: string; @IsDateString() date!: string; @Matches(/^\d{2}:\d{2}$/) time!: string; }

@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { AppointmentStatus } from '@prisma/client';
 import { AdminGuard } from '../common/admin.guard';
-import { BlockDto, CancelBookingDto, CreateBookingDto, StatusDto } from './dto/booking.dto';
+import { BlockDto, CancelBookingDto, CreateBookingDto, RescheduleDto, StatusDto } from './dto/booking.dto';
 import { BookingService } from './booking.service';
 
 @Controller()
@@ -11,6 +11,7 @@ export class BookingController {
   @Post('bookings') create(@Body() input: CreateBookingDto) { return this.bookings.create(input); }
   @Get('bookings') history(@Query('phone') phone: string) { return this.bookings.history(phone); }
   @Patch('bookings/:id/cancel') cancel(@Param('id') id: string, @Body() body: CancelBookingDto) { return this.bookings.cancel(id, body.phone); }
+  @Patch('bookings/:id/reschedule') reschedule(@Param('id') id: string, @Body() body: RescheduleDto) { return this.bookings.reschedule(id, body); }
   @UseGuards(AdminGuard) @Get('admin/bookings') list(@Query('date') date: string) { return this.bookings.adminAppointments(date); }
   @UseGuards(AdminGuard) @Patch('admin/bookings/:id') status(@Param('id') id: string, @Body() body: StatusDto) { return this.bookings.updateStatus(id, body.status as AppointmentStatus); }
   @UseGuards(AdminGuard) @Get('admin/blocks') blocks(@Query('date') date: string) { return this.bookings.blocks(date); }

@@ -205,3 +205,8 @@ footer a:hover { color:var(--yellow); }
 .services-admin { margin-top:80px; padding-top:48px; border-top:3px dashed var(--steel); }
 .service-form .primary { margin-top:22px; }
 .cancel-edit { width:100%; margin-top:12px; border-color:var(--asphalt); color:#fff; }
+.appointment-card { flex-wrap:wrap; }
+.reschedule { flex-basis:100%; display:grid; gap:18px; padding-top:20px; border-top:2px dashed var(--steel); }
+.reschedule .date-control { float:none; max-width:260px; }
+.reschedule .slot-grid { grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); }
+.reschedule .primary { justify-self:start; }
