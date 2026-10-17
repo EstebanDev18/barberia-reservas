@@ -22,7 +22,7 @@ export class BookingService {
 
   private validStart(time: string, duration: number) { return OPEN_SLOTS.includes(time) && minutes(time) + duration <= 18 * 60 + 30 && !occupiedSlots(time, duration).some((slot) => slot >= '12:30' && slot < '14:00'); }
 
-  async availability(date: string, duration: number, barberId = 'esteban') {
+  async availability(date: string, duration: number, barberId: string) {
     if (!this.validStart('09:00', duration)) throw new BadRequestException('Duración inválida.');
     await this.barbers.byId(barberId);
     const busy = await this.prisma.scheduleSlot.findMany({ where: { barberId, date: asDate(date) }, select: { time: true } });
@@ -94,7 +94,8 @@ export class BookingService {
     }
   }
 
-  adminAppointments(date: string) { return this.prisma.appointment.findMany({ where: { date: asDate(date) }, include: { customer: true, service: true, barber: true }, orderBy: { time: 'asc' } }); }
+  // barberId opcional: sin él, el panel ve la agenda de toda la barbería.
+  adminAppointments(date: string, barberId?: string) { return this.prisma.appointment.findMany({ where: { date: asDate(date), ...(barberId && { barberId }) }, include: { customer: true, service: true, barber: true }, orderBy: { time: 'asc' } }); }
   async updateStatus(id: string, status: AppointmentStatus) {
     // Al cancelar se liberan los slots para que el horario vuelva a estar disponible.
     const updated = await this.prisma.$transaction(async (tx) => { if (status === AppointmentStatus.CANCELLED) await tx.scheduleSlot.deleteMany({ where: { appointmentId: id } }); return tx.appointment.update({ where: { id }, data: { status }, include: { customer: true, service: true, barber: true } }); });
@@ -103,11 +104,12 @@ export class BookingService {
   }
 
   async block(input: BlockDto) {
+    await this.barbers.byId(input.barberId);
     if (!this.validStart(input.time, input.duration)) throw new BadRequestException('El bloqueo está fuera del horario laboral.');
     const date = asDate(input.date), slots = occupiedSlots(input.time, input.duration);
-    try { return await this.prisma.scheduleBlock.create({ data: { barberId: input.barberId, date, time: input.time, duration: input.duration, note: input.note, slots: { create: slots.map((time) => ({ barberId: input.barberId, date, time, kind: SlotKind.BLOCK })) } } }); }
+    try { return await this.prisma.scheduleBlock.create({ data: { barberId: input.barberId, date, time: input.time, duration: input.duration, note: input.note, slots: { create: slots.map((time) => ({ barberId: input.barberId, date, time, kind: SlotKind.BLOCK })) } }, include: { barber: true } }); }
     catch (error) { if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new ConflictException('No puedes bloquear un horario ocupado.'); throw error; }
   }
-  blocks(date: string) { return this.prisma.scheduleBlock.findMany({ where: { date: asDate(date) }, orderBy: { time: 'asc' } }); }
+  blocks(date: string, barberId?: string) { return this.prisma.scheduleBlock.findMany({ where: { date: asDate(date), ...(barberId && { barberId }) }, include: { barber: true }, orderBy: { time: 'asc' } }); }
   unblock(id: string) { return this.prisma.scheduleBlock.delete({ where: { id } }); }
 }
