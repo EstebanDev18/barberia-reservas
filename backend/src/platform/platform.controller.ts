@@ -10,6 +10,7 @@ class RegisterDto {
   @IsEmail() email!: string;
   @Matches(/^\D*(\d\D*){7,}$/) phone!: string;
   @IsString() @MinLength(2) city!: string;
+  @IsString() @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres.' }) password!: string;
   @IsIn(Object.keys(PLANS)) plan!: PlanId;
   @IsIn(Object.keys(PERIODS)) period!: Period;
 }

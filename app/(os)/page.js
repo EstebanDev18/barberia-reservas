@@ -60,7 +60,7 @@ export default function SoftwarePage() {
   return <main ref={rootRef}>
     <section className="os-hero os-dark"><i className="os-blob a" /><i className="os-blob b" />
       <div><p className="os-kicker" data-hero>Software para barberías en Colombia</p><h1 data-hero>El sistema operativo de tu<Rotator words={["barbería", "agenda", "equipo", "carta"]} /></h1><p className="os-lead os-muted" data-hero>Reservas en línea, agenda por barbero y tu carta de precios en un solo lugar. Tus clientes apartan su silla en 3 pasos; tú dejas de cuadrar turnos por WhatsApp.</p>
-        <div className="os-actions" data-hero><a className="os-btn os-btn-main" data-magnetic href="/software/registro">Registrar mi barbería <span className="arrow">→</span></a><a className="os-btn os-btn-ghost" data-magnetic href="#demo">Pruébalo en vivo</a></div>
+        <div className="os-actions" data-hero><a className="os-btn os-btn-main" data-magnetic href="/registro">Registrar mi barbería <span className="arrow">→</span></a><a className="os-btn os-btn-ghost" data-magnetic href="#demo">Pruébalo en vivo</a></div>
         <div className="os-stats" data-hero><div><CountUp to={3} /><span>pasos para reservar</span></div><div><CountUp to={24} suffix="/7" /><span>reservas abiertas</span></div><div><CountUp to={0} /><span>reservas dobles</span></div></div></div>
       <div><HeroApp /></div></section>
 
@@ -78,6 +78,6 @@ export default function SoftwarePage() {
 
     <section className="os-section os-dark" id="preguntas"><div className="os-head"><p className="os-kicker" data-os-reveal>Preguntas frecuentes</p><h2 data-os-reveal>Lo que más nos <span className="os-hl">preguntan.</span></h2></div><div className="os-faq">{faqs.map(([question, answer]) => <details key={question} data-os-reveal><summary>{question}</summary><p>{answer}</p></details>)}</div></section>
 
-    <div className="os-dark" style={{ paddingTop: 1 }}><section className="os-cta" data-os-reveal><h2>Tu barbería, sin filas y sin cuentos.</h2><p>Elige tu plan, paga en línea y empieza a recibir reservas hoy.</p><a className="os-btn os-btn-dark" data-magnetic href="/software/registro">Registrar mi barbería <span className="arrow">→</span></a></section></div>
+    <div className="os-dark" style={{ paddingTop: 1 }}><section className="os-cta" data-os-reveal><h2>Tu barbería, sin filas y sin cuentos.</h2><p>Elige tu plan, paga en línea y empieza a recibir reservas hoy.</p><a className="os-btn os-btn-dark" data-magnetic href="/registro">Registrar mi barbería <span className="arrow">→</span></a></section></div>
   </main>;
 }

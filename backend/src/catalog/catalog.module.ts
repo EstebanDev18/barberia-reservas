@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
+import { ShopModule } from '../shop/shop.module';
 import { CatalogController } from './catalog.controller';
 import { CatalogService } from './catalog.service';
 
-@Module({ controllers: [CatalogController], providers: [CatalogService], exports: [CatalogService] })
+@Module({ imports: [ShopModule], controllers: [CatalogController], providers: [CatalogService], exports: [CatalogService] })
 export class CatalogModule {}

@@ -40,10 +40,10 @@ export default function PaymentResult() {
   const [icon, tone, title] = error ? ["!", "bad", "No pudimos confirmar el pago"] : messages[result?.status] || messages.PENDING;
   return <main className="os-center"><div className="os-burst" ref={burst} aria-hidden="true" /><section className="os-status-card" ref={cardRef}>
     <span className={`os-status-ico ${tone}`}>{icon}</span><h1>{title}</h1>
-    {error ? <><p className="os-muted">{error}</p><a className="os-btn os-btn-dark" href="/software/registro">Volver al registro</a></> : !result || result.status === "PENDING" ? <p className="os-muted">Esto puede tardar unos segundos. No cierres esta página.</p> : result.status === "APPROVED" ? <>
+    {error ? <><p className="os-muted">{error}</p><a className="os-btn os-btn-dark" href="/registro">Volver al registro</a></> : !result || result.status === "PENDING" ? <p className="os-muted">Esto puede tardar unos segundos. No cierres esta página.</p> : result.status === "APPROVED" ? <>
       <p className="os-muted"><b>{result.barbershop.name}</b> quedó registrada en BarberOS.</p>
       <dl className="os-review"><div><dt>Plan</dt><dd>{planName(result.plan)} · {result.period === "YEARLY" ? "Anual" : "Mensual"}</dd></div><div><dt>Licencia vigente hasta</dt><dd>{dateLabel(result.barbershop.paidUntil)}</dd></div><div><dt>Referencia</dt><dd className="os-mono">{result.reference}</dd></div></dl>
-      <p className="os-muted">Guarda la referencia. Con el correo que registraste te contactamos para configurar tu equipo y tu carta.</p><a className="os-btn os-btn-main" href="/software">Volver a BarberOS <span className="arrow">→</span></a></> : <>
-      <p className="os-muted">Tu barbería no se activó porque el pago no se aprobó. No se te cobró nada; puedes intentarlo de nuevo.</p><a className="os-btn os-btn-main" href="/software/registro">Intentar de nuevo <span className="arrow">→</span></a></>}
+      <p className="os-muted">Entra a tu panel con la contraseña que creaste: ahí agregas tu equipo, tu carta y eliges cómo se ve tu página.</p><dl className="os-review"><div><dt>Tu página</dt><dd className="os-mono">/{result.barbershop.slug}</dd></div></dl><div className="os-wiz-actions"><a className="os-btn os-btn-ghost" href={`/${result.barbershop.slug}`} target="_blank" rel="noopener noreferrer">Ver mi página ↗</a><a className="os-btn os-btn-main" href={`/${result.barbershop.slug}/admin`}>Entrar a mi panel <span className="arrow">→</span></a></div></> : <>
+      <p className="os-muted">Tu barbería no se activó porque el pago no se aprobó. No se te cobró nada; puedes intentarlo de nuevo.</p><a className="os-btn os-btn-main" href="/registro">Intentar de nuevo <span className="arrow">→</span></a></>}
   </section></main>;
 }

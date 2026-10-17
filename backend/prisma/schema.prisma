@@ -29,7 +29,9 @@ model Customer {
 
 model Service {
   id           String        @id @default(cuid())
-  name         String        @unique
+  barbershopId String
+  barbershop   Barbershop    @relation(fields: [barbershopId], references: [id])
+  name         String
   duration     Int
   price        Int
   description  String
@@ -37,10 +39,14 @@ model Service {
   appointments Appointment[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+
+  @@unique([barbershopId, name])
 }
 
 model Barber {
   id           String          @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop      @relation(fields: [barbershopId], references: [id])
   name         String
   role         String
   bio          String
@@ -50,6 +56,8 @@ model Barber {
   slots        ScheduleSlot[]
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
+
+  @@index([barbershopId])
 }
 
 model Appointment {
@@ -127,7 +135,19 @@ model Barbershop {
   status    BarbershopStatus @default(PENDING_PAYMENT)
   // La licencia vale mientras paidUntil sea futura; vencida = paidUntil en el pasado.
   paidUntil DateTime?
+  // Vacío = el dueño todavía no puede entrar a su panel.
+  passwordHash String        @default("")
+  // Tema de la página pública y del panel: callejero | clasico | minimal. accent es un color #rrggbb opcional.
+  theme     String           @default("callejero")
+  accent    String           @default("")
+  heroImage String           @default("")
+  address   String           @default("")
+  mapsUrl   String           @default("")
+  whatsapp  String           @default("")
+  instagram String           @default("")
   payments  Payment[]
+  barbers   Barber[]
+  services  Service[]
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 

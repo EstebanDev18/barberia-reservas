@@ -2,15 +2,18 @@ import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundEx
 import { JwtService } from '@nestjs/jwt';
 import { BarbershopStatus, PaymentStatus } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
+import { hashPassword } from '../common/password';
 import { PrismaService } from '../prisma/prisma.service';
 import { PERIODS, PLANS, Period, PlanId, priceOf } from './plans';
 
 type WompiTransaction = { id: string; reference: string; status: string; amount_in_cents: number; currency: string };
-type RegisterInput = { name: string; ownerName: string; email: string; phone: string; city: string; plan: PlanId; period: Period };
+type RegisterInput = { name: string; ownerName: string; email: string; phone: string; city: string; password: string; plan: PlanId; period: Period };
 
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 const slugify = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'barberia';
 const FINAL = new Set(['APPROVED', 'DECLINED', 'VOIDED', 'ERROR']);
+// Rutas propias de BarberOS: una barbería no puede quedar con estas direcciones.
+const RESERVED = new Set(['admin', 'registro', 'software', 'api']);
 
 @Injectable()
 export class PlatformService {
@@ -27,7 +30,7 @@ export class PlatformService {
   async register(input: RegisterInput) {
     if (!this.wompi.publicKey && !this.demoMode) throw new BadRequestException('Los pagos no están configurados todavía.');
     const email = input.email.trim().toLowerCase();
-    const data = { name: input.name.trim(), ownerName: input.ownerName.trim(), email, phone: input.phone.replace(/\D/g, ''), city: input.city.trim(), plan: input.plan };
+    const data = { name: input.name.trim(), ownerName: input.ownerName.trim(), email, phone: input.phone.replace(/\D/g, ''), city: input.city.trim(), plan: input.plan, passwordHash: hashPassword(input.password) };
     // Si la misma barbería ya se registró y no terminó de pagar, se reutiliza en vez de duplicarla.
     const pending = await this.prisma.barbershop.findFirst({ where: { email, name: data.name, status: BarbershopStatus.PENDING_PAYMENT } });
     const shop = pending ? await this.prisma.barbershop.update({ where: { id: pending.id }, data }) : await this.prisma.barbershop.create({ data: { ...data, slug: await this.freeSlug(data.name) } });
@@ -38,12 +41,12 @@ export class PlatformService {
 
   private async freeSlug(name: string) {
     const base = slugify(name);
-    for (let n = 1; ; n++) { const slug = n === 1 ? base : `${base}-${n}`; if (!(await this.prisma.barbershop.findUnique({ where: { slug } }))) return slug; }
+    for (let n = 1; ; n++) { const slug = n === 1 ? base : `${base}-${n}`; if (!RESERVED.has(slug) && !(await this.prisma.barbershop.findUnique({ where: { slug } }))) return slug; }
   }
 
   private checkoutUrl(reference: string, amountInCents: number, shop: { email: string; ownerName: string }) {
-    const redirect = `${this.site}/software/registro/resultado`;
-    if (this.demoMode) return `${this.site}/software/registro/pago-demo?reference=${reference}`;
+    const redirect = `${this.site}/registro/resultado`;
+    if (this.demoMode) return `${this.site}/registro/pago-demo?reference=${reference}`;
     const params = new URLSearchParams({ 'public-key': this.wompi.publicKey!, currency: 'COP', 'amount-in-cents': String(amountInCents), reference, 'signature:integrity': sha256(`${reference}${amountInCents}COP${this.wompi.integrity}`), 'redirect-url': redirect, 'customer-data:email': shop.email, 'customer-data:full-name': shop.ownerName });
     return `https://checkout.wompi.co/p/?${params}`;
   }
@@ -101,5 +104,5 @@ export class PlatformService {
     return { accessToken: await this.jwt.signAsync({ role: 'platform' }) };
   }
 
-  barbershops() { return this.prisma.barbershop.findMany({ include: { payments: { orderBy: { createdAt: 'desc' } } }, orderBy: { createdAt: 'desc' } }); }
+  barbershops() { return this.prisma.barbershop.findMany({ omit: { passwordHash: true }, include: { payments: { orderBy: { createdAt: 'desc' } } }, orderBy: { createdAt: 'desc' } }); }
 }

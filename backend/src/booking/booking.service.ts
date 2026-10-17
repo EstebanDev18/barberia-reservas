@@ -2,9 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AppointmentStatus, Prisma, SlotKind } from '@prisma/client';
 import { BarberService } from '../barber/barber.service';
-import { CatalogService } from '../catalog/catalog.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { UserService } from '../user/user.service';
 import { BlockDto, CreateBookingDto, RescheduleDto } from './dto/booking.dto';
 
 const OPEN_SLOTS = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00'];
@@ -18,13 +16,13 @@ const occupiedSlots = (time: string, duration: number) => Array.from({ length: M
 
 @Injectable()
 export class BookingService {
-  constructor(private readonly prisma: PrismaService, private readonly catalog: CatalogService, private readonly barbers: BarberService, private readonly users: UserService, private readonly events: EventEmitter2) {}
+  constructor(private readonly prisma: PrismaService, private readonly barbers: BarberService, private readonly events: EventEmitter2) {}
 
   private validStart(time: string, duration: number) { return OPEN_SLOTS.includes(time) && minutes(time) + duration <= 18 * 60 + 30 && !occupiedSlots(time, duration).some((slot) => slot >= '12:30' && slot < '14:00'); }
 
-  async availability(date: string, duration: number, barberId: string) {
+  async availability(shopId: string, date: string, duration: number, barberId: string) {
     if (!this.validStart('09:00', duration)) throw new BadRequestException('Duración inválida.');
-    await this.barbers.byId(barberId);
+    await this.barbers.byId(shopId, barberId);
     const busy = await this.prisma.scheduleSlot.findMany({ where: { barberId, date: asDate(date) }, select: { time: true } });
     const busyTimes = new Set(busy.map((slot) => slot.time));
     return OPEN_SLOTS.filter((time) => this.validStart(time, duration) && startsAt(asDate(date), time) > Date.now() && occupiedSlots(time, duration).every((slot) => !busyTimes.has(slot)));
@@ -40,19 +38,19 @@ export class BookingService {
   }
 
   // Cita del cliente que todavía puede cancelarse o moverse (confirmada y a más de 2 h).
-  private async changeable(id: string, phone: string) {
-    const booking = await this.prisma.appointment.findUnique({ where: { id }, include: { customer: true } });
+  private async changeable(shopId: string, id: string, phone: string) {
+    const booking = await this.prisma.appointment.findFirst({ where: { id, barber: { barbershopId: shopId } }, include: { customer: true } });
     if (!booking || booking.customer.phone !== phone.replace(/\D/g, '')) throw new NotFoundException('No encontramos esa cita.');
     if (booking.status !== AppointmentStatus.CONFIRMED) throw new BadRequestException('Esta cita ya no se puede modificar.');
     if (startsAt(booking.date, booking.time) - Date.now() < 2 * 60 * 60 * 1000) throw new BadRequestException('La cita solo puede cancelarse o reprogramarse con al menos 2 horas de anticipación.');
     return booking;
   }
 
-  async create(input: CreateBookingDto) {
+  async create(shopId: string, input: CreateBookingDto) {
     const phone = input.phone.replace(/\D/g, '');
     try {
       const appointment = await this.prisma.$transaction(async (tx) => {
-        const [service, barber] = await Promise.all([tx.service.findFirst({ where: { id: input.serviceId, active: true } }), tx.barber.findFirst({ where: { id: input.barberId, active: true } })]);
+        const [service, barber] = await Promise.all([tx.service.findFirst({ where: { id: input.serviceId, barbershopId: shopId, active: true } }), tx.barber.findFirst({ where: { id: input.barberId, barbershopId: shopId, active: true } })]);
         if (!service || !barber) throw new NotFoundException('El servicio o barbero ya no está disponible.');
         const date = asDate(input.date);
         const slots = await this.freeSlots(tx, barber.id, date, input.time, service.duration);
@@ -67,17 +65,17 @@ export class BookingService {
     }
   }
 
-  history(phone: string) { return this.prisma.appointment.findMany({ where: { customer: { phone: phone.replace(/\D/g, '') } }, include: { service: true, barber: true, customer: true }, orderBy: [{ date: 'desc' }, { time: 'desc' }] }); }
+  history(shopId: string, phone: string) { return this.prisma.appointment.findMany({ where: { customer: { phone: phone.replace(/\D/g, '') }, barber: { barbershopId: shopId } }, include: { service: true, barber: true, customer: true }, orderBy: [{ date: 'desc' }, { time: 'desc' }] }); }
 
-  async cancel(id: string, phone: string) {
-    await this.changeable(id, phone);
+  async cancel(shopId: string, id: string, phone: string) {
+    await this.changeable(shopId, id, phone);
     const updated = await this.prisma.$transaction(async (tx) => { await tx.scheduleSlot.deleteMany({ where: { appointmentId: id } }); return tx.appointment.update({ where: { id }, data: { status: AppointmentStatus.CANCELLED }, include: { customer: true, service: true, barber: true } }); });
     this.events.emit('booking.cancelled', updated);
     return updated;
   }
 
-  async reschedule(id: string, input: RescheduleDto) {
-    const booking = await this.changeable(id, input.phone);
+  async reschedule(shopId: string, id: string, input: RescheduleDto) {
+    const booking = await this.changeable(shopId, id, input.phone);
     try {
       const updated = await this.prisma.$transaction(async (tx) => {
         // Se sueltan los slots actuales primero para permitir mover la cita a una hora que se cruza con la anterior.
@@ -95,21 +93,26 @@ export class BookingService {
   }
 
   // barberId opcional: sin él, el panel ve la agenda de toda la barbería.
-  adminAppointments(date: string, barberId?: string) { return this.prisma.appointment.findMany({ where: { date: asDate(date), ...(barberId && { barberId }) }, include: { customer: true, service: true, barber: true }, orderBy: { time: 'asc' } }); }
-  async updateStatus(id: string, status: AppointmentStatus) {
+  adminAppointments(shopId: string, date: string, barberId?: string) { return this.prisma.appointment.findMany({ where: { date: asDate(date), barber: { barbershopId: shopId }, ...(barberId && { barberId }) }, include: { customer: true, service: true, barber: true }, orderBy: { time: 'asc' } }); }
+  async updateStatus(shopId: string, id: string, status: AppointmentStatus) {
+    if (!(await this.prisma.appointment.findFirst({ where: { id, barber: { barbershopId: shopId } } }))) throw new NotFoundException('No encontramos esa cita.');
     // Al cancelar se liberan los slots para que el horario vuelva a estar disponible.
     const updated = await this.prisma.$transaction(async (tx) => { if (status === AppointmentStatus.CANCELLED) await tx.scheduleSlot.deleteMany({ where: { appointmentId: id } }); return tx.appointment.update({ where: { id }, data: { status }, include: { customer: true, service: true, barber: true } }); });
     if (status === AppointmentStatus.CANCELLED) this.events.emit('booking.cancelled', updated);
     return updated;
   }
 
-  async block(input: BlockDto) {
-    await this.barbers.byId(input.barberId);
+  async block(shopId: string, input: BlockDto) {
+    await this.barbers.byId(shopId, input.barberId);
     if (!this.validStart(input.time, input.duration)) throw new BadRequestException('El bloqueo está fuera del horario laboral.');
     const date = asDate(input.date), slots = occupiedSlots(input.time, input.duration);
     try { return await this.prisma.scheduleBlock.create({ data: { barberId: input.barberId, date, time: input.time, duration: input.duration, note: input.note, slots: { create: slots.map((time) => ({ barberId: input.barberId, date, time, kind: SlotKind.BLOCK })) } }, include: { barber: true } }); }
     catch (error) { if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new ConflictException('No puedes bloquear un horario ocupado.'); throw error; }
   }
-  blocks(date: string, barberId?: string) { return this.prisma.scheduleBlock.findMany({ where: { date: asDate(date), ...(barberId && { barberId }) }, include: { barber: true }, orderBy: { time: 'asc' } }); }
-  unblock(id: string) { return this.prisma.scheduleBlock.delete({ where: { id } }); }
+  blocks(shopId: string, date: string, barberId?: string) { return this.prisma.scheduleBlock.findMany({ where: { date: asDate(date), barber: { barbershopId: shopId }, ...(barberId && { barberId }) }, include: { barber: true }, orderBy: { time: 'asc' } }); }
+  async unblock(shopId: string, id: string) {
+    const { count } = await this.prisma.scheduleBlock.deleteMany({ where: { id, barber: { barbershopId: shopId } } });
+    if (!count) throw new NotFoundException('Bloqueo no encontrado.');
+    return { ok: true };
+  }
 }
