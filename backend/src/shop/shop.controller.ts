@@ -4,11 +4,16 @@ import { AdminGuard, ShopId } from '../common/admin.guard';
 import { ShopService } from './shop.service';
 
 const THEMES = ['callejero', 'clasico', 'minimal'];
+// Solo rutas propias o imágenes en base64: se pintan como src en la página pública.
+const IMAGE = /^(\/[\w.-]+|data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+)?$/;
+const imageMsg = { message: 'La imagen debe ser WebP, JPG o PNG.' };
 class LoginDto { @IsString() @MinLength(1) password!: string; }
 // Los enlaces se validan aquí porque se pintan como href en la página pública.
 class SettingsDto {
   @IsOptional() @IsIn(THEMES) theme?: string;
   @IsOptional() @Matches(/^(#[0-9a-fA-F]{6})?$/, { message: 'El color debe ser #rrggbb.' }) accent?: string;
+  @IsOptional() @Matches(IMAGE, imageMsg) @MaxLength(700_000, { message: 'La foto pesa demasiado.' }) heroImage?: string;
+  @IsOptional() @Matches(IMAGE, imageMsg) @MaxLength(200_000, { message: 'El logo pesa demasiado.' }) logo?: string;
   @IsOptional() @IsString() @MaxLength(120) address?: string;
   @IsOptional() @Matches(/^(https:\/\/\S+)?$/, { message: 'El link de Maps debe empezar por https://' }) @MaxLength(300) mapsUrl?: string;
   @IsOptional() @Matches(/^\d{0,15}$/, { message: 'El WhatsApp va solo con números, con indicativo (ej. 573001234567).' }) whatsapp?: string;

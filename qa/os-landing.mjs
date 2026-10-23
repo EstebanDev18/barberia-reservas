@@ -5,7 +5,7 @@ for (const reducedMotion of ["no-preference", "reduce"]) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion });
   page.on("pageerror", (e) => errors.push(`${reducedMotion}: ${e.message}`));
   page.on("console", (m) => m.type() === "error" && !m.text().includes("404") && errors.push(`${reducedMotion}: ${m.text()}`));
-  await page.goto("http://localhost:3005/software", { waitUntil: "networkidle" });
+  await page.goto("http://localhost:3005/", { waitUntil: "networkidle" });
   await page.waitForTimeout(1500);
   const tag = reducedMotion === "reduce" ? "r" : "f";
   await page.mouse.move(1000, 400); await page.waitForTimeout(700);
@@ -28,7 +28,7 @@ for (const reducedMotion of ["no-preference", "reduce"]) {
   await page.close();
 }
 const m = await browser.newPage({ viewport: { width: 390, height: 844 } });
-await m.goto("http://localhost:3005/software", { waitUntil: "networkidle" }); await m.waitForTimeout(1200);
+await m.goto("http://localhost:3005/", { waitUntil: "networkidle" }); await m.waitForTimeout(1200);
 for (let y = 0; y < 12000; y += 500) { await m.mouse.wheel(0, 500); await m.waitForTimeout(100); }
 await m.waitForTimeout(800);
 const o = await m.evaluate(() => document.documentElement.scrollWidth - innerWidth); if (o > 0) errors.push(`movil desborda ${o}`);

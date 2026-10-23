@@ -140,7 +140,9 @@ model Barbershop {
   // Tema de la página pública y del panel: callejero | clasico | minimal. accent es un color #rrggbb opcional.
   theme     String           @default("callejero")
   accent    String           @default("")
+  // Foto del afiche y logo: ruta de /public o una imagen data:image/... que el panel ya comprimió.
   heroImage String           @default("")
+  logo      String           @default("")
   address   String           @default("")
   mapsUrl   String           @default("")
   whatsapp  String           @default("")

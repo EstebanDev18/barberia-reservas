@@ -1,6 +1,7 @@
 import { Body, CanActivate, Controller, ExecutionContext, Get, Headers, HttpCode, Injectable, Param, Post, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { IsEmail, IsIn, IsString, Matches, MinLength } from 'class-validator';
+import { AdminGuard, ShopId } from '../common/admin.guard';
 import { PERIODS, PLANS, Period, PlanId } from './plans';
 import { PlatformService } from './platform.service';
 
@@ -17,6 +18,7 @@ class RegisterDto {
 class SyncDto { @IsString() @MinLength(3) id!: string; }
 class DemoDto { @IsIn(['APPROVED', 'DECLINED']) status!: 'APPROVED' | 'DECLINED'; }
 class LoginDto { @IsString() @MinLength(1) password!: string; }
+class RenewDto { @IsIn(Object.keys(PLANS)) plan!: PlanId; @IsIn(Object.keys(PERIODS)) period!: Period; }
 
 // Acceso del dueño de BarberOS (distinto al panel de cada barbería).
 @Injectable()
@@ -39,4 +41,5 @@ export class PlatformController {
   @Post('payments/:reference/demo') @HttpCode(200) demo(@Param('reference') reference: string, @Body() body: DemoDto) { return this.platform.demoPay(reference, body.status); }
   @Post('login') login(@Body() body: LoginDto) { return this.platform.login(body.password); }
   @UseGuards(PlatformGuard) @Get('barbershops') barbershops() { return this.platform.barbershops(); }
+  @UseGuards(AdminGuard) @Post('renew') renew(@ShopId() shopId: string, @Body() body: RenewDto) { return this.platform.renew(shopId, body.plan, body.period); }
 }

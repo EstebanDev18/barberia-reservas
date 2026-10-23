@@ -14,6 +14,8 @@ const slugify = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').
 const FINAL = new Set(['APPROVED', 'DECLINED', 'VOIDED', 'ERROR']);
 // Rutas propias de BarberOS: una barbería no puede quedar con estas direcciones.
 const RESERVED = new Set(['admin', 'registro', 'software', 'api']);
+// Prefijo de las referencias de renovación: la página de resultado lo usa para mostrar el mensaje del panel y no el del registro.
+const RENEWAL = 'REN';
 
 @Injectable()
 export class PlatformService {
@@ -34,8 +36,21 @@ export class PlatformService {
     // Si la misma barbería ya se registró y no terminó de pagar, se reutiliza en vez de duplicarla.
     const pending = await this.prisma.barbershop.findFirst({ where: { email, name: data.name, status: BarbershopStatus.PENDING_PAYMENT } });
     const shop = pending ? await this.prisma.barbershop.update({ where: { id: pending.id }, data }) : await this.prisma.barbershop.create({ data: { ...data, slug: await this.freeSlug(data.name) } });
-    const amountInCents = priceOf(input.plan, input.period) * 100;
-    const payment = await this.prisma.payment.create({ data: { reference: `BOS-${Date.now()}-${randomBytes(3).toString('hex')}`, barbershopId: shop.id, plan: input.plan, period: input.period, amountInCents } });
+    return this.charge(shop, input.plan, input.period, 'BOS');
+  }
+
+  // Renovación desde el panel de la barbería: mismo cobro que el registro; applyTransaction suma los meses a lo que quede vigente.
+  async renew(shopId: string, plan: PlanId, period: Period) {
+    const shop = await this.prisma.barbershop.findUniqueOrThrow({ where: { id: shopId } });
+    const cap = PLANS[plan].barbers;
+    const team = await this.prisma.barber.count({ where: { barbershopId: shopId, active: true } });
+    if (cap && team > cap) throw new BadRequestException(`Tienes ${team} barberos activos y el plan ${PLANS[plan].name} permite ${cap}. Retira barberos o elige un plan más grande.`);
+    return this.charge(shop, plan, period, RENEWAL);
+  }
+
+  private async charge(shop: { id: string; name: string; slug: string; email: string; ownerName: string }, plan: PlanId, period: Period, prefix: string) {
+    const amountInCents = priceOf(plan, period) * 100;
+    const payment = await this.prisma.payment.create({ data: { reference: `${prefix}-${Date.now()}-${randomBytes(3).toString('hex')}`, barbershopId: shop.id, plan, period, amountInCents } });
     return { barbershop: { id: shop.id, name: shop.name, slug: shop.slug }, reference: payment.reference, checkoutUrl: this.checkoutUrl(payment.reference, amountInCents, shop) };
   }
 

@@ -4,9 +4,9 @@ import { BarbershopStatus } from '@prisma/client';
 import { checkPassword } from '../common/password';
 import { PrismaService } from '../prisma/prisma.service';
 
-const PUBLIC = { id: true, name: true, slug: true, theme: true, accent: true, heroImage: true, address: true, mapsUrl: true, whatsapp: true, instagram: true } as const;
+const PUBLIC = { id: true, name: true, slug: true, theme: true, accent: true, heroImage: true, logo: true, address: true, mapsUrl: true, whatsapp: true, instagram: true } as const;
 const SETTINGS = { ...PUBLIC, plan: true, status: true, paidUntil: true } as const;
-export type ShopSettings = { theme?: string; accent?: string; address?: string; mapsUrl?: string; whatsapp?: string; instagram?: string };
+export type ShopSettings = { theme?: string; accent?: string; heroImage?: string; logo?: string; address?: string; mapsUrl?: string; whatsapp?: string; instagram?: string };
 
 @Injectable()
 export class ShopService {

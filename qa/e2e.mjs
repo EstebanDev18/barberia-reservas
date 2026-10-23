@@ -28,7 +28,7 @@ assert.ok(!(await slots()).includes(hora), "la hora reservada debe quedar ocupad
 await page.goto(`${HOME}/admin`, { waitUntil: "networkidle" });
 await page.getByLabel("Contraseña").fill("legacy-dev");
 await page.getByRole("button", { name: /Entrar/ }).click();
-await page.locator(".services-admin:not(.team-admin):not(.look-admin)").waitFor();
+await page.locator(".services-admin:not(.team-admin):not(.look-admin):not(.license-admin)").waitFor();
 await page.getByLabel("Ver agenda").fill(date);
 const card = page.locator(".appointment-card.confirmed", { hasText: "Cliente Prueba" }).last(); // la recién creada tiene la hora más tarde
 await card.waitFor();
@@ -51,13 +51,13 @@ await form.getByLabel("Duración (min)").fill("30");
 await form.getByLabel("Precio (COP)").fill("15000");
 await form.getByLabel("Descripción").fill("Líneas y figuras.");
 await form.getByRole("button", { name: "Agregar servicio" }).click();
-const svc = page.locator(".services-admin:not(.team-admin):not(.look-admin) .appointment-card", { hasText: "Diseño QA" });
+const svc = page.locator(".services-admin:not(.team-admin):not(.look-admin):not(.license-admin) .appointment-card", { hasText: "Diseño QA" });
 await svc.waitFor();
 await svc.getByRole("button", { name: "Editar" }).click();
 await form.getByLabel("Precio (COP)").fill("18000");
 await form.getByRole("button", { name: "Guardar cambios" }).click();
 await svc.getByText("18.000").waitFor();
-await page.locator(".services-admin:not(.team-admin):not(.look-admin)").screenshot({ path: "admin-servicios.png" });
+await page.locator(".services-admin:not(.team-admin):not(.look-admin):not(.license-admin)").screenshot({ path: "admin-servicios.png" });
 page.once("dialog", (dlg) => dlg.accept());
 await svc.getByRole("button", { name: "Quitar" }).click();
 await svc.waitFor({ state: "detached" });

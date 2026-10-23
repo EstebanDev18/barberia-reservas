@@ -37,13 +37,15 @@ export default function PaymentResult() {
     gsap.fromTo(cardRef.current, { y: 30, opacity: 0, scale: 0.97 }, { y: 0, opacity: 1, scale: 1, duration: 0.6, ease: "back.out(1.4)" });
     if (result.status === "APPROVED") confetti(burst.current);
   }, [result?.status]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [icon, tone, title] = error ? ["!", "bad", "No pudimos confirmar el pago"] : messages[result?.status] || messages.PENDING;
+  // Las renovaciones hechas desde el panel llevan referencia REN-: vuelven al panel en vez de al registro.
+  const renewal = result?.reference.startsWith("REN-"), panel = `/${result?.barbershop.slug}/admin`;
+  const [icon, tone, title] = error ? ["!", "bad", "No pudimos confirmar el pago"] : renewal && result.status === "APPROVED" ? ["✓", "ok", "¡Licencia renovada!"] : messages[result?.status] || messages.PENDING;
   return <main className="os-center"><div className="os-burst" ref={burst} aria-hidden="true" /><section className="os-status-card" ref={cardRef}>
     <span className={`os-status-ico ${tone}`}>{icon}</span><h1>{title}</h1>
     {error ? <><p className="os-muted">{error}</p><a className="os-btn os-btn-dark" href="/registro">Volver al registro</a></> : !result || result.status === "PENDING" ? <p className="os-muted">Esto puede tardar unos segundos. No cierres esta página.</p> : result.status === "APPROVED" ? <>
-      <p className="os-muted"><b>{result.barbershop.name}</b> quedó registrada en BarberOS.</p>
+      <p className="os-muted"><b>{result.barbershop.name}</b> {renewal ? "ya puede recibir reservas en línea." : "quedó registrada en BarberOS."}</p>
       <dl className="os-review"><div><dt>Plan</dt><dd>{planName(result.plan)} · {result.period === "YEARLY" ? "Anual" : "Mensual"}</dd></div><div><dt>Licencia vigente hasta</dt><dd>{dateLabel(result.barbershop.paidUntil)}</dd></div><div><dt>Referencia</dt><dd className="os-mono">{result.reference}</dd></div></dl>
-      <p className="os-muted">Entra a tu panel con la contraseña que creaste: ahí agregas tu equipo, tu carta y eliges cómo se ve tu página.</p><dl className="os-review"><div><dt>Tu página</dt><dd className="os-mono">/{result.barbershop.slug}</dd></div></dl><div className="os-wiz-actions"><a className="os-btn os-btn-ghost" href={`/${result.barbershop.slug}`} target="_blank" rel="noopener noreferrer">Ver mi página ↗</a><a className="os-btn os-btn-main" href={`/${result.barbershop.slug}/admin`}>Entrar a mi panel <span className="arrow">→</span></a></div></> : <>
-      <p className="os-muted">Tu barbería no se activó porque el pago no se aprobó. No se te cobró nada; puedes intentarlo de nuevo.</p><a className="os-btn os-btn-main" href="/registro">Intentar de nuevo <span className="arrow">→</span></a></>}
+      {!renewal && <><p className="os-muted">Entra a tu panel con la contraseña que creaste: ahí agregas tu equipo, tu carta y eliges cómo se ve tu página.</p><dl className="os-review"><div><dt>Tu página</dt><dd className="os-mono">/{result.barbershop.slug}</dd></div></dl></>}<div className="os-wiz-actions"><a className="os-btn os-btn-ghost" href={`/${result.barbershop.slug}`} target="_blank" rel="noopener noreferrer">Ver mi página ↗</a><a className="os-btn os-btn-main" href={panel}>{renewal ? "Volver a mi panel" : "Entrar a mi panel"} <span className="arrow">→</span></a></div></> : <>
+      <p className="os-muted">{renewal ? "Tu licencia no se renovó" : "Tu barbería no se activó"} porque el pago no se aprobó. No se te cobró nada; puedes intentarlo de nuevo.</p><a className="os-btn os-btn-main" href={renewal ? panel : "/registro"}>Intentar de nuevo <span className="arrow">→</span></a></>}
   </section></main>;
 }
