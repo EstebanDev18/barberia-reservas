@@ -23,7 +23,7 @@ export default function RegisterPage() {
     api("/platform/plans").then((response) => response.json()).then((data) => { setPlans(data.plans); setDemo(data.demo); }).catch(() => setError("No pudimos cargar los planes. Revisa tu conexión."));
   }, []);
   useEffect(() => {
-    gsap.to(barRef.current, { scaleX: step / (steps.length - 1), duration: 0.6, ease: "power3.out" });
+    gsap.to(barRef.current, { scaleX: (step + 1) / steps.length, duration: 0.6, ease: "power3.out" });
     gsap.fromTo(panelRef.current, { x: reduced() ? 0 : direction.current * 46, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" });
     panelRef.current?.querySelector("input,button")?.focus({ preventScroll: true });
   }, [step]);
@@ -37,8 +37,8 @@ export default function RegisterPage() {
 
   return <main className="os-reg">
     <section className="os-wizard">
-      <p className="os-kicker">Registrar mi barbería</p><h1>Activa tu barbería en minutos.</h1>
-      <ol className="os-stepper" aria-label="Pasos del registro"><i className="os-stepper-bar"><i ref={barRef} /></i>{steps.map((label, index) => <li key={label} className={index < step ? "done" : index === step ? "on" : ""} aria-current={index === step ? "step" : undefined}><button type="button" disabled={index > step} onClick={() => go(index)}><b>{index < step ? "✓" : index + 1}</b>{label}</button></li>)}</ol>
+      <p className="os-kicker">Registrar mi barbería</p><h1>Activa tu barbería en minutos</h1>
+      <ol className="os-stepper" aria-label="Pasos del registro"><i className="os-stepper-bar"><i ref={barRef} /></i>{steps.map((label, index) => <li key={label} className={index < step ? "done" : index === step ? "on" : ""} aria-current={index === step ? "step" : undefined}><button type="button" disabled={index > step} onClick={() => go(index)}><b>{index < step ? "✓" : String(index + 1).padStart(2, "0")}</b>{label}</button></li>)}</ol>
       <form className="os-wiz-card" onSubmit={next} noValidate><div ref={panelRef}>
         {step === 0 && <><h2>Elige tu plan</h2><p className="os-muted">Puedes empezar con uno y cambiar cuando tu equipo crezca.</p>
           <div className={`os-switch ${form.period === "YEARLY" ? "yearly" : ""}`} role="group" aria-label="Periodo de pago"><i className="knob" /><button type="button" aria-pressed={form.period === "MONTHLY"} onClick={() => setForm({ ...form, period: "MONTHLY" })}>Mensual</button><button type="button" aria-pressed={form.period === "YEARLY"} onClick={() => setForm({ ...form, period: "YEARLY" })}>Anual <em>−2 meses</em></button></div>
