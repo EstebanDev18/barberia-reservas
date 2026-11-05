@@ -8,7 +8,8 @@ Software de reservas para barberías. Cada barbería que se registra (y paga su 
 - **Página de cada barbería** (`/<slug>`, p. ej. `/legacy-barber`): carta de servicios, elección de barbero, calendario y horarios libres, confirmación con código.
 - **Panel de la barbería** (`/<slug>/admin`): agenda del día, equipo, servicios y precios, bloqueos de horario, tema de la página.
 - **Historial del cliente** (`/<slug>/historial`): consultar, mover o cancelar citas (hasta 2 horas antes).
-- Pagos de la licencia con **Wompi**. Sin llaves configuradas se usa una pasarela simulada (solo fuera de producción).
+- **Idioma y moneda**: BarberOS (portada, registro, pagos y panel) está en español e inglés; los planes se venden en COP, USD y EUR (precios fijos en `backend/src/platform/plans.ts`, textos en `app/(os)/i18n.js`). Cada barbería elige la moneda de su carta; sus páginas siguen en español.
+- Pagos de la licencia con **Wompi** (COP) y, desde la etapa 4, **Stripe** (USD/EUR). Sin llaves configuradas se usa una pasarela simulada (solo fuera de producción).
 
 ## Arquitectura
 

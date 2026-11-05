@@ -246,6 +246,10 @@ body:has(.os)::after { display:none; }
   .os-nav { gap:8px; }
   .os-nav .os-btn { padding:10px 12px; font-size:13px; }
   .os-logo { font-size:20px; }
+}
+/* En celulares angostos el botón del encabezado no cabe junto a los selectores: el mismo botón está en el hero */
+@media (max-width:480px) {
+  .os-nav .os-btn { display:none; }
   .os-facts { grid-template-columns:1fr; gap:16px; }
   .os-principles li { grid-template-columns:40px 1fr; }
   .os-footer-grid { grid-template-columns:1fr; }
