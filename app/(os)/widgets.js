@@ -20,25 +20,6 @@ export function Tween({ value, format = plain }) {
   return <span ref={ref}>{format(value)}</span>;
 }
 
-// Cuenta desde 0 la primera vez que entra en pantalla.
-export function CountUp({ to, suffix = "" }) {
-  const [value, setValue] = useState(0), ref = useRef(null);
-  useEffect(() => { const io = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) { setValue(to); io.disconnect(); } }); io.observe(ref.current); return () => io.disconnect(); }, [to]);
-  return <b ref={ref}><Tween value={value} />{suffix}</b>;
-}
-
-export function Rotator({ words }) {
-  const [index, setIndex] = useState(0), ref = useRef(null);
-  useEffect(() => {
-    const id = setInterval(() => {
-      const shift = reduced() ? 0 : 55;
-      gsap.to(ref.current, { yPercent: -shift, opacity: 0, duration: 0.28, ease: "power2.in", onComplete: () => { setIndex((n) => (n + 1) % words.length); gsap.fromTo(ref.current, { yPercent: shift, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.45, ease: "power3.out" }); } });
-    }, 2600);
-    return () => clearInterval(id);
-  }, [words.length]);
-  return <span className="os-rotator"><span ref={ref}>{words[index]}</span></span>;
-}
-
 const agenda = [["9:00", "Andrés P.", "Corte y barba", "Kevin"], ["10:30", "Camilo R.", "Solo corte", "Esteban"], ["12:00", "Almuerzo", "Bloqueado", "Kevin"], ["3:30", "Santiago M.", "Barba", "Esteban"]];
 const toasts = [["+", "Nueva reserva", "Juan D. · Solo corte · 4:00 p.m."], ["↻", "Cita reprogramada", "Andrés pasó a las 11:00 a.m."], ["✓", "Corte completado", "Santiago M. · $ 20.000"]];
 
@@ -50,7 +31,7 @@ export function HeroApp() {
   }, []);
   const [ico, title, sub] = toasts[toast];
   return <div className="os-app" data-hero-app aria-hidden="true">
-    <div className="os-app-bar"><i /><i /><i /><span>BarberOS · Panel de la barbería</span></div>
+    <div className="os-app-bar"><b>Legacy Barber<small>Agenda</small></b><span className="os-live">En vivo</span></div>
     <div className="os-app-body"><div className="os-app-head"><b>Hoy</b><span>4 citas · 2 barberos</span></div>{agenda.map(([time, who, what, barber]) => <div className={`os-row ${what === "Bloqueado" ? "blocked" : ""}`} key={time}><b>{time}</b><span>{who}<small>{what}</small></span><em>{barber}</em></div>)}</div>
     <div className="os-toast" ref={ref}><i>{ico}</i><div>{title}<small>{sub}</small></div></div>
   </div>;
