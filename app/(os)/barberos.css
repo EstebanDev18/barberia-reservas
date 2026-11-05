@@ -311,18 +311,32 @@ body:has(.os)::after { display:none; }
 
 /* Resultado, pasarela demo y acceso */
 .os-center { position:relative; min-height:72vh; display:grid; place-items:center; padding:60px 20px; overflow:hidden; }
-.os-status-card { position:relative; z-index:1; width:min(100%,620px); background:#fff; border:1px solid var(--line); border-radius:28px; padding:clamp(28px,4vw,48px); box-shadow:var(--shadow); text-align:left; }
-.os-status-card h1 { font-size:clamp(32px,4vw,48px); }
+.os-status-card { position:relative; z-index:1; width:min(100%,600px); background:#fff; border:1px solid var(--line); border-radius:20px; padding:clamp(28px,4vw,44px); box-shadow:0 1px 2px rgba(14,17,22,.04),0 24px 48px -32px rgba(14,17,22,.3); text-align:left; overflow:hidden; }
+.os-status-card h1 { font-size:clamp(28px,3vw,38px); }
 .os-status-card .os-review { margin-top:20px; }
 .os-status-card .os-review div { grid-template-columns:170px 1fr; }
-.os-status-ico { display:grid; place-items:center; width:64px; height:64px; border-radius:20px; margin-bottom:20px; font:600 28px/1 var(--display); }
+.os-review-total dd { font:600 20px/1 var(--display); letter-spacing:-.02em; }
+/* Íconos de estado: círculo con trazo fino; el check se dibuja al aparecer */
+.os-status-ico { display:grid; place-items:center; width:48px; height:48px; border-radius:50%; margin-bottom:22px; }
+.os-status-ico svg { width:24px; height:24px; }
 .os-status-ico.ok { background:var(--lime); color:var(--ink); }
-.os-status-ico.bad { background:var(--coral); color:#fff; }
-.os-status-ico.wait { background:var(--ink); color:var(--lime); font-size:20px; }
-.os-status-ico.wait:empty::after { content:""; width:26px; height:26px; border-radius:50%; border:3px solid rgba(191,227,107,.3); border-top-color:var(--lime); animation:os-spin .8s linear infinite; }
-@keyframes os-spin { to { rotate:360deg; } }
-.os-burst { position:absolute; left:50%; top:38%; width:0; height:0; z-index:2; pointer-events:none; }
-.os-confetti { position:absolute; width:10px; height:16px; border-radius:2px; }
+.os-status-ico.bad { background:#fff1ed; color:#b42d12; box-shadow:inset 0 0 0 1px rgba(180,45,18,.2); }
+.os-draw { stroke-dasharray:24; stroke-dashoffset:24; animation:os-draw .6s .15s cubic-bezier(.16,1,.3,1) forwards; }
+@keyframes os-draw { to { stroke-dashoffset:0; } }
+/* Espera: barra fina indeterminada arriba de la tarjeta, no un círculo girando */
+.os-pending-bar { position:absolute; top:0; left:0; right:0; height:3px; background:var(--line); overflow:hidden; }
+.os-pending-bar::after { content:""; position:absolute; top:0; bottom:0; width:40%; background:var(--ink); animation:os-indet 1.4s cubic-bezier(.65,0,.35,1) infinite; }
+@keyframes os-indet { from { translate:-100% 0; } to { translate:260% 0; } }
+@media (prefers-reduced-motion:reduce) { .os-draw { animation:none; stroke-dashoffset:0; } .os-pending-bar::after { animation-duration:3s; } }
+.os-next { list-style:none; counter-reset:next; margin:4px 0 0; padding:0; display:grid; }
+.os-next li { counter-increment:next; display:grid; grid-template-columns:36px 1fr; gap:2px 12px; padding:14px 0; border-top:1px solid var(--line); }
+.os-next li::before { content:counter(next,decimal-leading-zero); grid-row:span 2; font:500 12px/1.7 var(--mono); color:var(--muted); }
+.os-next b { font-weight:600; }
+.os-next span { font-size:14px; color:var(--muted); }
+.os-demo-tag { display:inline-block; margin-bottom:22px; padding:6px 9px; border-radius:6px; background:#fff1c2; color:#6b4e00; font:500 11px/1 var(--mono); letter-spacing:.08em; text-transform:uppercase; }
+.os-skeleton { display:grid; gap:10px; margin:20px 0 0; }
+.os-skeleton i { height:44px; border-radius:10px; background:linear-gradient(90deg,#f1f1ec 0 40%,#f8f8f4 50%,#f1f1ec 60%) 0 0/300% 100%; animation:os-shimmer 1.4s linear infinite; }
+@keyframes os-shimmer { to { background-position:-150% 0; } }
 .os-status-card .os-field { margin-top:8px; }
 
 /* Acceso a la plataforma: marca a la izquierda, formulario a la derecha */

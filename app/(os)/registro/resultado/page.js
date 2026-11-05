@@ -6,23 +6,16 @@ import { api } from "@/lib/api";
 import { planName } from "../../widgets";
 
 const dateLabel = (value) => new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "long", year: "numeric" }).format(new Date(value));
-const messages = { APPROVED: ["✓", "ok", "¡Tu barbería ya está activa!"], DECLINED: ["✕", "bad", "El pago no pasó"], VOIDED: ["✕", "bad", "El pago fue anulado"], ERROR: ["!", "bad", "Algo falló con el pago"], PENDING: ["", "wait", "Confirmando tu pago…"] };
+const messages = { APPROVED: ["ok", "Tu barbería ya está activa"], DECLINED: ["bad", "El pago no pasó"], VOIDED: ["bad", "El pago fue anulado"], ERROR: ["bad", "Algo falló con el pago"], PENDING: ["wait", "Confirmando tu pago"] };
 
-// Confeti al aprobar el pago: piezas de colores de la marca que caen con GSAP.
-function confetti(host) {
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const colors = ["#c6f24e", "#ff5b3a", "#0e1116", "#ffffff"];
-  for (let i = 0; i < 70; i++) {
-    const piece = document.createElement("i");
-    piece.className = "os-confetti";
-    piece.style.background = colors[i % colors.length];
-    host.appendChild(piece);
-    gsap.fromTo(piece, { x: 0, y: 0, rotate: 0, opacity: 1 }, { x: gsap.utils.random(-420, 420), y: gsap.utils.random(-320, 260), rotate: gsap.utils.random(-540, 540), opacity: 0, duration: gsap.utils.random(1.2, 2.2), ease: "power2.out", onComplete: () => piece.remove() });
-  }
+// Íconos de trazo fino; el de éxito se dibuja al aparecer (stroke-dashoffset) en lugar de confeti.
+function StatusIcon({ tone }) {
+  if (tone === "wait") return null;
+  return <span className={`os-status-ico ${tone}`} aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{tone === "ok" ? <path className="os-draw" d="M5 12.5l4.5 4.5L19 7.5" /> : <path d="M7 7l10 10M17 7L7 17" />}</svg></span>;
 }
 
 export default function PaymentResult() {
-  const [result, setResult] = useState(null), [error, setError] = useState(""), cardRef = useRef(null), burst = useRef(null);
+  const [result, setResult] = useState(null), [error, setError] = useState(""), cardRef = useRef(null);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     // Wompi vuelve con ?id=<transacción>; el modo demo con ?reference=. El estado siempre lo confirma el backend.
@@ -33,17 +26,37 @@ export default function PaymentResult() {
     return () => clearTimeout(timer);
   }, []);
   useEffect(() => {
-    if (!result) return;
-    gsap.fromTo(cardRef.current, { y: 30, opacity: 0, scale: 0.97 }, { y: 0, opacity: 1, scale: 1, duration: 0.6, ease: "back.out(1.4)" });
-    if (result.status === "APPROVED") confetti(burst.current);
+    if (!result || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    gsap.fromTo(cardRef.current, { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" });
   }, [result?.status]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [icon, tone, title] = error ? ["!", "bad", "No pudimos confirmar el pago"] : messages[result?.status] || messages.PENDING;
-  return <main className="os-center"><div className="os-burst" ref={burst} aria-hidden="true" /><section className="os-status-card" ref={cardRef}>
-    <span className={`os-status-ico ${tone}`}>{icon}</span><h1>{title}</h1>
-    {error ? <><p className="os-muted">{error}</p><a className="os-btn os-btn-dark" href="/registro">Volver al registro</a></> : !result || result.status === "PENDING" ? <p className="os-muted">Esto puede tardar unos segundos. No cierres esta página.</p> : result.status === "APPROVED" ? <>
-      <p className="os-muted"><b>{result.barbershop.name}</b> quedó registrada en BarberOS.</p>
-      <dl className="os-review"><div><dt>Plan</dt><dd>{planName(result.plan)} · {result.period === "YEARLY" ? "Anual" : "Mensual"}</dd></div><div><dt>Licencia vigente hasta</dt><dd>{dateLabel(result.barbershop.paidUntil)}</dd></div><div><dt>Referencia</dt><dd className="os-mono">{result.reference}</dd></div></dl>
-      <p className="os-muted">Entra a tu panel con la contraseña que creaste: ahí agregas tu equipo, tu carta y eliges cómo se ve tu página.</p><dl className="os-review"><div><dt>Tu página</dt><dd className="os-mono">/{result.barbershop.slug}</dd></div></dl><div className="os-wiz-actions"><a className="os-btn os-btn-ghost" href={`/${result.barbershop.slug}`} target="_blank" rel="noopener noreferrer">Ver mi página ↗</a><a className="os-btn os-btn-main" href={`/${result.barbershop.slug}/admin`}>Entrar a mi panel <span className="arrow">→</span></a></div></> : <>
-      <p className="os-muted">Tu barbería no se activó porque el pago no se aprobó. No se te cobró nada; puedes intentarlo de nuevo.</p><a className="os-btn os-btn-main" href="/registro">Intentar de nuevo <span className="arrow">→</span></a></>}
+
+  const [tone, title] = error ? ["bad", "No pudimos confirmar el pago"] : messages[result?.status] || messages.PENDING;
+  const pending = !error && (!result || result.status === "PENDING");
+  const shop = result?.barbershop;
+  return <main className="os-center"><section className="os-status-card" ref={cardRef} aria-busy={pending}>
+    {pending && <i className="os-pending-bar" aria-hidden="true" />}
+    <StatusIcon tone={tone} />
+    <p className="os-kicker">Registro · Pago</p>
+    <h1>{title}</h1>
+    {error ? <><p className="os-muted">{error}</p><div className="os-wiz-actions"><a className="os-btn os-btn-ghost" href="/#preguntas">Ver preguntas frecuentes</a><a className="os-btn os-btn-dark" href="/registro">Volver al registro</a></div></>
+      : pending ? <p className="os-muted">Estamos confirmando la transacción con la pasarela de pago. Puede tardar unos segundos; no cierres esta página.</p>
+      : result.status === "APPROVED" ? <>
+        <p className="os-muted"><b>{shop.name}</b> quedó registrada y lista para recibir reservas.</p>
+        <dl className="os-review">
+          <div><dt>Plan</dt><dd>{planName(result.plan)} · {result.period === "YEARLY" ? "Anual" : "Mensual"}</dd></div>
+          <div><dt>Licencia vigente hasta</dt><dd>{dateLabel(shop.paidUntil)}</dd></div>
+          <div><dt>Tu página</dt><dd className="os-mono">/{shop.slug}</dd></div>
+          <div><dt>Referencia</dt><dd className="os-mono">{result.reference}</dd></div>
+        </dl>
+        <ol className="os-next">
+          <li><b>Entra a tu panel</b><span>Con la contraseña que creaste en el registro.</span></li>
+          <li><b>Arma tu carta y tu equipo</b><span>Servicios, precios, barberos y horarios.</span></li>
+          <li><b>Comparte tu link</b><span>En Instagram, WhatsApp o en un código QR en la barbería.</span></li>
+        </ol>
+        <div className="os-wiz-actions"><a className="os-btn os-btn-ghost" href={`/${shop.slug}`} target="_blank" rel="noopener noreferrer">Ver mi página ↗</a><a className="os-btn os-btn-main" href={`/${shop.slug}/admin`}>Entrar a mi panel <span className="arrow">→</span></a></div></>
+      : <>
+        <p className="os-muted">Tu barbería no se activó porque el pago no se aprobó. No se te cobró nada; puedes intentarlo de nuevo con otro medio de pago.</p>
+        <dl className="os-review"><div><dt>Referencia</dt><dd className="os-mono">{result.reference}</dd></div></dl>
+        <div className="os-wiz-actions"><a className="os-btn os-btn-ghost" href="/#precios">Ver planes</a><a className="os-btn os-btn-main" href="/registro">Intentar de nuevo <span className="arrow">→</span></a></div></>}
   </section></main>;
 }
