@@ -59,7 +59,7 @@ export default function SoftwarePage() {
 
   return <main ref={rootRef}>
     <section className="os-hero os-dark"><i className="os-blob a" /><i className="os-blob b" />
-      <div><p className="os-kicker" data-hero>Software para barberías en Colombia</p><h1 data-hero>El sistema operativo de tu<Rotator words={["barbería", "agenda", "equipo", "carta"]} /></h1><p className="os-lead os-muted" data-hero>Reservas en línea, agenda por barbero y tu carta de precios en un solo lugar. Tus clientes apartan su silla en 3 pasos; tú dejas de cuadrar turnos por WhatsApp.</p>
+      <div><p className="os-kicker" data-hero>Software de reservas para barberías</p><h1 data-hero>El sistema operativo de tu<Rotator words={["barbería", "agenda", "equipo", "carta"]} /></h1><p className="os-lead os-muted" data-hero>Reservas en línea, agenda por barbero y tu carta de precios en un solo lugar. Tus clientes apartan su silla en 3 pasos; tú dejas de cuadrar turnos por WhatsApp.</p>
         <div className="os-actions" data-hero><a className="os-btn os-btn-main" data-magnetic href="/registro">Registrar mi barbería <span className="arrow">→</span></a><a className="os-btn os-btn-ghost" data-magnetic href="#demo">Pruébalo en vivo</a></div>
         <div className="os-stats" data-hero><div><CountUp to={3} /><span>pasos para reservar</span></div><div><CountUp to={24} suffix="/7" /><span>reservas abiertas</span></div><div><CountUp to={0} /><span>reservas dobles</span></div></div></div>
       <div><HeroApp /></div></section>
