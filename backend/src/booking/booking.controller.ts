@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { AppointmentStatus } from '@prisma/client';
+import { AppointmentStatus } from '.prisma/tenant';
 import { AdminGuard, ShopId } from '../common/admin.guard';
 import { ShopService } from '../shop/shop.service';
 import { BlockDto, CancelBookingDto, CreateBookingDto, RescheduleDto, StatusDto } from './dto/booking.dto';

@@ -1,0 +1,72 @@
+// Base de la PLATAFORMA (BarberOS): barberías que compran licencia, su configuración y sus pagos.
+// La operación de cada barbería (citas, clientes, servicios...) vive en su propia base: ver ../tenant/schema.prisma.
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/.prisma/platform"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("PLATFORM_DATABASE_URL")
+}
+
+enum BarbershopStatus {
+  PENDING_PAYMENT
+  ACTIVE
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  VOIDED
+  ERROR
+}
+
+model Barbershop {
+  id        String           @id @default(cuid())
+  name      String
+  slug      String           @unique
+  ownerName String
+  email     String
+  phone     String
+  city      String
+  plan      String
+  status    BarbershopStatus @default(PENDING_PAYMENT)
+  // La licencia vale mientras paidUntil sea futura; vencida = paidUntil en el pasado.
+  paidUntil DateTime?
+  // Vacío = el dueño todavía no puede entrar a su panel.
+  passwordHash String        @default("")
+  // Nombre de la base propia de la barbería. Vacío = todavía no se ha creado (se crea al aprobarse el primer pago).
+  databaseName String        @default("")
+  // Tema de la página pública y del panel: callejero | clasico | minimal. accent es un color #rrggbb opcional.
+  theme     String           @default("callejero")
+  accent    String           @default("")
+  heroImage String           @default("")
+  address   String           @default("")
+  mapsUrl   String           @default("")
+  whatsapp  String           @default("")
+  instagram String           @default("")
+  payments  Payment[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([email])
+}
+
+model Payment {
+  id                    String        @id @default(cuid())
+  reference             String        @unique
+  barbershopId          String
+  barbershop            Barbershop    @relation(fields: [barbershopId], references: [id])
+  plan                  String
+  period                String
+  amountInCents         Int
+  currency              String        @default("COP")
+  // wompi (Colombia, COP) o stripe (resto del mundo).
+  provider              String        @default("wompi")
+  providerTransactionId String?
+  status                PaymentStatus @default(PENDING)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+}

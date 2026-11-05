@@ -1,9 +1,10 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { BarbershopStatus, PaymentStatus } from '@prisma/client';
+import { BarbershopStatus, PaymentStatus } from '.prisma/platform';
 import { createHash, randomBytes } from 'crypto';
 import { hashPassword } from '../common/password';
 import { PrismaService } from '../prisma/prisma.service';
+import { TenantService } from '../tenancy/tenant.service';
 import { PERIODS, PLANS, Period, PlanId, priceOf } from './plans';
 
 type WompiTransaction = { id: string; reference: string; status: string; amount_in_cents: number; currency: string };
@@ -18,7 +19,7 @@ const RESERVED = new Set(['admin', 'registro', 'software', 'api']);
 @Injectable()
 export class PlatformService {
   private readonly logger = new Logger(PlatformService.name);
-  constructor(private readonly prisma: PrismaService, private readonly jwt: JwtService) {}
+  constructor(private readonly prisma: PrismaService, private readonly jwt: JwtService, private readonly tenants: TenantService) {}
 
   private get wompi() { return { publicKey: process.env.WOMPI_PUBLIC_KEY, integrity: process.env.WOMPI_INTEGRITY_SECRET, events: process.env.WOMPI_EVENTS_SECRET, api: process.env.WOMPI_API_URL || 'https://sandbox.wompi.co/v1' }; }
   // Sin llaves de Wompi (y fuera de producción) el cobro pasa por una pasarela simulada para poder probar el flujo.
@@ -64,6 +65,8 @@ export class PlatformService {
       const paidUntil = new Date(from); paidUntil.setMonth(paidUntil.getMonth() + PERIODS[payment.period as Period].months);
       await db.barbershop.update({ where: { id: payment.barbershopId }, data: { status: BarbershopStatus.ACTIVE, plan: payment.plan, paidUntil } });
     });
+    // Con el pago aprobado la barbería recibe su propia base (si ya existe, solo se verifican sus migraciones).
+    if (tx.status === 'APPROVED') await this.tenants.provision(payment.barbershopId);
     return this.status(payment.reference);
   }
 
