@@ -1,22 +1,26 @@
+import { cookies } from "next/headers";
+import { CURRENCIES } from "@/lib/money";
+import { OsChrome } from "./chrome";
+import { OsProvider } from "./i18n";
+import { CURRENCY_COOKIE, LANG_COOKIE, LANGS, defaultCurrencyFor } from "./prefs";
 import "./barberos.css";
 
-export const metadata = {
-  title: "BarberOS | Software de reservas para barberías",
-  description: "Reservas en línea, agenda por barbero y carta de precios para tu barbería.",
+const META = {
+  es: { title: "BarberOS | Software de reservas para barberías", description: "Reservas en línea, agenda por barbero y carta de precios para tu barbería." },
+  en: { title: "BarberOS | Booking software for barbershops", description: "Online booking, per-barber schedules and a price menu for your barbershop." },
 };
 
-export default function SoftwareLayout({ children }) {
-  return <div className="os">
-    <header className="os-header"><a className="os-logo" href="/">Barber<b>OS</b></a><nav className="os-nav" aria-label="BarberOS"><a href="/#nosotros">Quiénes somos</a><a href="/#funciones">Funciones</a><a href="/#precios">Precios</a><a className="os-btn os-btn-main" href="/registro">Registrar mi barbería</a></nav><i className="os-progress" aria-hidden="true" /></header>
-    {children}
-    <footer className="os-footer">
-      <div className="os-footer-grid">
-        <div><a className="os-logo" href="/">Barber<b>OS</b></a><p>El sistema operativo de tu barbería: reservas en línea, agenda por barbero y tu carta de precios en un solo lugar.</p></div>
-        <nav aria-label="Producto"><h3>Producto</h3><a href="/#funciones">Funciones</a><a href="/#demo">Pruébalo</a><a href="/#precios">Precios</a><a href="/registro">Registrar mi barbería</a></nav>
-        <nav aria-label="Empresa"><h3>Empresa</h3><a href="/#nosotros">Quiénes somos</a><a href="/#preguntas">Preguntas frecuentes</a><a href="/admin">Acceso BarberOS</a></nav>
-        <nav aria-label="Barberías"><h3>Barberías</h3><a href="/legacy-barber" target="_blank" rel="noopener noreferrer">Legacy Barber ↗</a></nav>
-      </div>
-      <div className="os-footer-bottom"><span>© {new Date().getFullYear()} BarberOS</span><span className="os-secure"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></svg>Pagos seguros procesados por Wompi</span></div>
-    </footer>
-  </div>;
+// El idioma y la moneda vienen de cookies para que el servidor pinte la página ya en el idioma elegido.
+async function preferences() {
+  const store = await cookies();
+  const lang = LANGS.includes(store.get(LANG_COOKIE)?.value) ? store.get(LANG_COOKIE).value : "es";
+  const currency = CURRENCIES.includes(store.get(CURRENCY_COOKIE)?.value) ? store.get(CURRENCY_COOKIE).value : defaultCurrencyFor(lang);
+  return { lang, currency };
+}
+
+export async function generateMetadata() { return META[(await preferences()).lang]; }
+
+export default async function SoftwareLayout({ children }) {
+  const { lang, currency } = await preferences();
+  return <OsProvider initialLang={lang} initialCurrency={currency}><OsChrome>{children}</OsChrome></OsProvider>;
 }
