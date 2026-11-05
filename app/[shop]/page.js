@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { Brand, ShopState, themeProps, useShop } from "@/lib/shop";
+import { formatMoney } from "@/lib/money";
 
 const today = new Date();
 const iso = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-const money = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 // Parallax del hero: posición del puntero normalizada a -1..1 en --mx/--my.
 const tilt = (event) => { const box = event.currentTarget.getBoundingClientRect(); event.currentTarget.style.setProperty("--mx", ((event.clientX - box.left) / box.width * 2 - 1).toFixed(3)); event.currentTarget.style.setProperty("--my", ((event.clientY - box.top) / box.height * 2 - 1).toFixed(3)); };
 const untilt = (event) => { event.currentTarget.style.setProperty("--mx", 0); event.currentTarget.style.setProperty("--my", 0); };
@@ -21,6 +21,8 @@ function Calendar({ value, onChange }) {
 
 export default function ShopHome() {
   const { slug, shop, missing } = useShop();
+  // Los precios se muestran en la moneda que eligió la barbería (COP por defecto).
+  const money = { format: (amount) => formatMoney(amount, shop?.currency || "COP") };
   const [catalog, setCatalog] = useState([]), [barbers, setBarbers] = useState([]);
   const [service, setService] = useState(null), [selectedBarber, setSelectedBarber] = useState(null);
   const [step, setStep] = useState(1), [date, setDate] = useState(iso(today)), [time, setTime] = useState(""), [slots, setSlots] = useState([]);

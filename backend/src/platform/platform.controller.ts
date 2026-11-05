@@ -1,7 +1,7 @@
 import { Body, CanActivate, Controller, ExecutionContext, Get, Headers, HttpCode, Injectable, Param, Post, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { IsEmail, IsIn, IsString, Matches, MinLength } from 'class-validator';
-import { PERIODS, PLANS, Period, PlanId } from './plans';
+import { IsEmail, IsIn, IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import { CURRENCIES, Currency, PERIODS, PLANS, Period, PlanId } from './plans';
 import { PlatformService } from './platform.service';
 
 class RegisterDto {
@@ -13,6 +13,7 @@ class RegisterDto {
   @IsString() @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres.' }) password!: string;
   @IsIn(Object.keys(PLANS)) plan!: PlanId;
   @IsIn(Object.keys(PERIODS)) period!: Period;
+  @IsOptional() @IsIn(CURRENCIES) currency?: Currency;
 }
 class SyncDto { @IsString() @MinLength(3) id!: string; }
 class DemoDto { @IsIn(['APPROVED', 'DECLINED']) status!: 'APPROVED' | 'DECLINED'; }

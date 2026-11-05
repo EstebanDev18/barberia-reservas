@@ -47,6 +47,8 @@ model Barbershop {
   mapsUrl   String           @default("")
   whatsapp  String           @default("")
   instagram String           @default("")
+  // Moneda en la que la barbería muestra los precios de su carta: COP | USD | EUR.
+  currency  String           @default("COP")
   payments  Payment[]
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt

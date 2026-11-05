@@ -5,10 +5,10 @@ import { createHash, randomBytes } from 'crypto';
 import { hashPassword } from '../common/password';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantService } from '../tenancy/tenant.service';
-import { PERIODS, PLANS, Period, PlanId, priceOf } from './plans';
+import { CURRENCIES, Currency, PERIODS, PLANS, Period, PlanId, priceOf, providerFor, toMinor } from './plans';
 
 type WompiTransaction = { id: string; reference: string; status: string; amount_in_cents: number; currency: string };
-type RegisterInput = { name: string; ownerName: string; email: string; phone: string; city: string; password: string; plan: PlanId; period: Period };
+type RegisterInput = { name: string; ownerName: string; email: string; phone: string; city: string; password: string; plan: PlanId; period: Period; currency?: Currency };
 
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 const slugify = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'barberia';
@@ -22,22 +22,32 @@ export class PlatformService {
   constructor(private readonly prisma: PrismaService, private readonly jwt: JwtService, private readonly tenants: TenantService) {}
 
   private get wompi() { return { publicKey: process.env.WOMPI_PUBLIC_KEY, integrity: process.env.WOMPI_INTEGRITY_SECRET, events: process.env.WOMPI_EVENTS_SECRET, api: process.env.WOMPI_API_URL || 'https://sandbox.wompi.co/v1' }; }
-  // Sin llaves de Wompi (y fuera de producción) el cobro pasa por una pasarela simulada para poder probar el flujo.
-  get demoMode() { return !this.wompi.publicKey && process.env.NODE_ENV !== 'production'; }
+  // Una pasarela está lista cuando tiene sus llaves. Stripe (USD/EUR) llega en la etapa 4: hasta entonces nunca está lista.
+  private ready(currency: Currency) { return providerFor(currency) === 'wompi' ? !!this.wompi.publicKey : !!process.env.STRIPE_SECRET_KEY; }
+  // Sin llaves de la pasarela (y fuera de producción) el cobro pasa por una pasarela simulada para poder probar el flujo.
+  demoFor(currency: Currency) { return !this.ready(currency) && process.env.NODE_ENV !== 'production'; }
   private get site() { return process.env.PUBLIC_SITE_URL || process.env.FRONTEND_URL?.split(',')[0] || 'http://localhost:3000'; }
 
-  plans() { return { plans: Object.entries(PLANS).map(([id, plan]) => ({ id, ...plan, yearly: priceOf(id as PlanId, 'YEARLY') })), demo: this.demoMode }; }
+  plans() {
+    return {
+      currencies: CURRENCIES,
+      plans: Object.entries(PLANS).map(([id, plan]) => ({ id, name: plan.name, barbers: plan.barbers, features: plan.features, prices: Object.fromEntries(CURRENCIES.map((c) => [c, { monthly: priceOf(id as PlanId, 'MONTHLY', c), yearly: priceOf(id as PlanId, 'YEARLY', c) }])) })),
+      demo: Object.fromEntries(CURRENCIES.map((c) => [c, this.demoFor(c)])),
+    };
+  }
 
   async register(input: RegisterInput) {
-    if (!this.wompi.publicKey && !this.demoMode) throw new BadRequestException('Los pagos no están configurados todavía.');
+    const currency = input.currency ?? 'COP';
+    if (!this.ready(currency) && !this.demoFor(currency)) throw new BadRequestException('Los pagos en esta moneda no están configurados todavía.');
     const email = input.email.trim().toLowerCase();
-    const data = { name: input.name.trim(), ownerName: input.ownerName.trim(), email, phone: input.phone.replace(/\D/g, ''), city: input.city.trim(), plan: input.plan, passwordHash: hashPassword(input.password) };
+    // La moneda del registro queda como moneda de la carta de la barbería (la puede cambiar en su panel).
+    const data = { name: input.name.trim(), ownerName: input.ownerName.trim(), email, phone: input.phone.replace(/\D/g, ''), city: input.city.trim(), plan: input.plan, currency, passwordHash: hashPassword(input.password) };
     // Si la misma barbería ya se registró y no terminó de pagar, se reutiliza en vez de duplicarla.
     const pending = await this.prisma.barbershop.findFirst({ where: { email, name: data.name, status: BarbershopStatus.PENDING_PAYMENT } });
     const shop = pending ? await this.prisma.barbershop.update({ where: { id: pending.id }, data }) : await this.prisma.barbershop.create({ data: { ...data, slug: await this.freeSlug(data.name) } });
-    const amountInCents = priceOf(input.plan, input.period) * 100;
-    const payment = await this.prisma.payment.create({ data: { reference: `BOS-${Date.now()}-${randomBytes(3).toString('hex')}`, barbershopId: shop.id, plan: input.plan, period: input.period, amountInCents } });
-    return { barbershop: { id: shop.id, name: shop.name, slug: shop.slug }, reference: payment.reference, checkoutUrl: this.checkoutUrl(payment.reference, amountInCents, shop) };
+    const amountInCents = toMinor(priceOf(input.plan, input.period, currency));
+    const payment = await this.prisma.payment.create({ data: { reference: `BOS-${Date.now()}-${randomBytes(3).toString('hex')}`, barbershopId: shop.id, plan: input.plan, period: input.period, amountInCents, currency, provider: providerFor(currency) } });
+    return { barbershop: { id: shop.id, name: shop.name, slug: shop.slug }, reference: payment.reference, checkoutUrl: this.checkoutUrl(payment.reference, amountInCents, currency, shop) };
   }
 
   private async freeSlug(name: string) {
@@ -45,9 +55,10 @@ export class PlatformService {
     for (let n = 1; ; n++) { const slug = n === 1 ? base : `${base}-${n}`; if (!RESERVED.has(slug) && !(await this.prisma.barbershop.findUnique({ where: { slug } }))) return slug; }
   }
 
-  private checkoutUrl(reference: string, amountInCents: number, shop: { email: string; ownerName: string }) {
+  private checkoutUrl(reference: string, amountInCents: number, currency: Currency, shop: { email: string; ownerName: string }) {
     const redirect = `${this.site}/registro/resultado`;
-    if (this.demoMode) return `${this.site}/registro/pago-demo?reference=${reference}`;
+    if (this.demoFor(currency)) return `${this.site}/registro/pago-demo?reference=${reference}`;
+    if (providerFor(currency) === 'stripe') throw new BadRequestException('El pago con Stripe todavía no está disponible.'); // etapa 4
     const params = new URLSearchParams({ 'public-key': this.wompi.publicKey!, currency: 'COP', 'amount-in-cents': String(amountInCents), reference, 'signature:integrity': sha256(`${reference}${amountInCents}COP${this.wompi.integrity}`), 'redirect-url': redirect, 'customer-data:email': shop.email, 'customer-data:full-name': shop.ownerName });
     return `https://checkout.wompi.co/p/?${params}`;
   }
@@ -74,7 +85,7 @@ export class PlatformService {
     const payment = await this.prisma.payment.findUnique({ where: { reference }, include: { barbershop: true } });
     if (!payment) throw new NotFoundException('Pago no encontrado.');
     const { barbershop: shop } = payment;
-    return { reference, status: payment.status, plan: payment.plan, period: payment.period, amountInCents: payment.amountInCents, barbershop: { name: shop.name, slug: shop.slug, status: shop.status, paidUntil: shop.paidUntil } };
+    return { reference, status: payment.status, plan: payment.plan, period: payment.period, amountInCents: payment.amountInCents, currency: payment.currency, provider: payment.provider, barbershop: { name: shop.name, slug: shop.slug, status: shop.status, paidUntil: shop.paidUntil } };
   }
 
   // La redirección de Wompi trae ?id=; se confirma preguntándole a Wompi, nunca creyéndole al navegador.
@@ -96,9 +107,9 @@ export class PlatformService {
   }
 
   async demoPay(reference: string, status: 'APPROVED' | 'DECLINED') {
-    if (!this.demoMode) throw new ForbiddenException('El modo demo está apagado.');
     const payment = await this.prisma.payment.findUnique({ where: { reference } });
     if (!payment) throw new NotFoundException('Pago no encontrado.');
+    if (!this.demoFor(payment.currency as Currency)) throw new ForbiddenException('El modo demo está apagado.');
     return this.applyTransaction({ id: `demo-${reference}`, reference, status, amount_in_cents: payment.amountInCents, currency: payment.currency });
   }
 

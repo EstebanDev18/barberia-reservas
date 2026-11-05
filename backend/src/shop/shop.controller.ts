@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { IsIn, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 import { AdminGuard, ShopId } from '../common/admin.guard';
+import { CURRENCIES } from '../platform/plans';
 import { ShopService } from './shop.service';
 
 const THEMES = ['callejero', 'clasico', 'minimal'];
@@ -13,6 +14,7 @@ class SettingsDto {
   @IsOptional() @Matches(/^(https:\/\/\S+)?$/, { message: 'El link de Maps debe empezar por https://' }) @MaxLength(300) mapsUrl?: string;
   @IsOptional() @Matches(/^\d{0,15}$/, { message: 'El WhatsApp va solo con números, con indicativo (ej. 573001234567).' }) whatsapp?: string;
   @IsOptional() @Matches(/^[A-Za-z0-9._]{0,30}$/, { message: 'El Instagram va sin @ ni espacios.' }) instagram?: string;
+  @IsOptional() @IsIn(CURRENCIES, { message: 'La moneda debe ser COP, USD o EUR.' }) currency?: string;
 }
 
 @Controller()

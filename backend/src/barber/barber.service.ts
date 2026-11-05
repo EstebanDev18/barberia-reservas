@@ -21,7 +21,7 @@ export class BarberService {
     const shop = await this.platform.barbershop.findUniqueOrThrow({ where: { id: shopId } });
     const plan = PLANS[shop.plan as PlanId];
     const db = await this.tenants.client(shopId);
-    if (plan?.barbers && (await db.barber.count({ where: { active: true } })) >= plan.barbers) throw new ForbiddenException(`Tu plan ${plan.name} permite hasta ${plan.barbers} barbero${plan.barbers > 1 ? 's' : ''}. Mejora tu plan para sumar más.`);
+    if (plan?.barbers && (await db.barber.count({ where: { active: true } })) >= plan.barbers) throw new ForbiddenException(`Tu plan ${plan.name.es} permite hasta ${plan.barbers} barbero${plan.barbers > 1 ? 's' : ''}. Mejora tu plan para sumar más.`);
     return db.barber.create({ data });
   }
   async update(shopId: string, id: string, data: BarberData) {
