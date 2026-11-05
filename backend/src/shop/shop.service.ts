@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { BarbershopStatus } from '@prisma/client';
+import { BarbershopStatus } from '.prisma/platform';
 import { checkPassword } from '../common/password';
 import { PrismaService } from '../prisma/prisma.service';
 

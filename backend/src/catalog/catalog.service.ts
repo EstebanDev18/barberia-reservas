@@ -1,16 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantService } from '../tenancy/tenant.service';
 
 type ServiceData = { name: string; duration: number; price: number; description: string };
 
+// Cada barbería tiene su propia base: no hace falta filtrar por barbería.
 @Injectable()
 export class CatalogService {
-  constructor(private readonly prisma: PrismaService) {}
-  list(shopId: string) { return this.prisma.service.findMany({ where: { barbershopId: shopId, active: true }, orderBy: { price: 'asc' } }); }
+  constructor(private readonly tenants: TenantService) {}
+  async list(shopId: string) { return (await this.tenants.client(shopId)).service.findMany({ where: { active: true }, orderBy: { price: 'asc' } }); }
   async update(shopId: string, id: string, data: Partial<ServiceData> & { active?: boolean }) {
-    if (!(await this.prisma.service.findFirst({ where: { id, barbershopId: shopId } }))) throw new NotFoundException('Servicio no encontrado.');
-    return this.prisma.service.update({ where: { id }, data });
+    const db = await this.tenants.client(shopId);
+    if (!(await db.service.findUnique({ where: { id } }))) throw new NotFoundException('Servicio no encontrado.');
+    return db.service.update({ where: { id }, data });
   }
-  // El nombre es único por barbería: si vuelven a agregar un servicio que habían quitado, se reactiva con los datos nuevos.
-  create(shopId: string, data: ServiceData) { return this.prisma.service.upsert({ where: { barbershopId_name: { barbershopId: shopId, name: data.name } }, create: { ...data, barbershopId: shopId }, update: { ...data, active: true } }); }
+  // El nombre es único en la barbería: si vuelven a agregar un servicio que habían quitado, se reactiva con los datos nuevos.
+  async create(shopId: string, data: ServiceData) { return (await this.tenants.client(shopId)).service.upsert({ where: { name: data.name }, create: data, update: { ...data, active: true } }); }
 }

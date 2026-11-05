@@ -1,10 +1,14 @@
+// Base de UNA BARBERÍA (una por barbería: barberos_shop_<id>). La base misma es la frontera entre barberías,
+// por eso aquí no hay barbershopId. La API se conecta con la URL de cada barbería (TENANT_DATABASE_URL_TEMPLATE);
+// TENANT_DATABASE_URL solo se usa para crear migraciones nuevas contra una base de desarrollo.
 generator client {
   provider = "prisma-client-js"
+  output   = "../../node_modules/.prisma/tenant"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("TENANT_DATABASE_URL")
 }
 
 enum AppointmentStatus {
@@ -29,9 +33,7 @@ model Customer {
 
 model Service {
   id           String        @id @default(cuid())
-  barbershopId String
-  barbershop   Barbershop    @relation(fields: [barbershopId], references: [id])
-  name         String
+  name         String        @unique
   duration     Int
   price        Int
   description  String
@@ -39,14 +41,10 @@ model Service {
   appointments Appointment[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
-
-  @@unique([barbershopId, name])
 }
 
 model Barber {
   id           String          @id @default(cuid())
-  barbershopId String
-  barbershop   Barbershop      @relation(fields: [barbershopId], references: [id])
   name         String
   role         String
   bio          String
@@ -56,8 +54,6 @@ model Barber {
   slots        ScheduleSlot[]
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
-
-  @@index([barbershopId])
 }
 
 model Appointment {
@@ -107,66 +103,4 @@ model ScheduleSlot {
   @@unique([barberId, date, time])
   @@index([appointmentId])
   @@index([blockId])
-}
-
-// ── BarberOS: barberías que compran licencia del software ──
-enum BarbershopStatus {
-  PENDING_PAYMENT
-  ACTIVE
-}
-
-enum PaymentStatus {
-  PENDING
-  APPROVED
-  DECLINED
-  VOIDED
-  ERROR
-}
-
-model Barbershop {
-  id        String           @id @default(cuid())
-  name      String
-  slug      String           @unique
-  ownerName String
-  email     String
-  phone     String
-  city      String
-  plan      String
-  status    BarbershopStatus @default(PENDING_PAYMENT)
-  // La licencia vale mientras paidUntil sea futura; vencida = paidUntil en el pasado.
-  paidUntil DateTime?
-  // Vacío = el dueño todavía no puede entrar a su panel.
-  passwordHash String        @default("")
-  // Tema de la página pública y del panel: callejero | clasico | minimal. accent es un color #rrggbb opcional.
-  theme     String           @default("callejero")
-  accent    String           @default("")
-  heroImage String           @default("")
-  address   String           @default("")
-  mapsUrl   String           @default("")
-  whatsapp  String           @default("")
-  instagram String           @default("")
-  payments  Payment[]
-  barbers   Barber[]
-  services  Service[]
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-
-  @@index([email])
-}
-
-model Payment {
-  id                    String        @id @default(cuid())
-  reference             String        @unique
-  barbershopId          String
-  barbershop            Barbershop    @relation(fields: [barbershopId], references: [id])
-  plan                  String
-  period                String
-  amountInCents         Int
-  currency              String        @default("COP")
-  // Hoy solo Wompi; el campo deja lugar a otra pasarela para vender fuera de Colombia.
-  provider              String        @default("wompi")
-  providerTransactionId String?
-  status                PaymentStatus @default(PENDING)
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
 }
