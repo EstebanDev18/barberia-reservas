@@ -55,6 +55,6 @@ export default function RegisterPage() {
     </section>
     <aside className="os-side"><p className="os-side-label">Tu plan</p><h2>{plan ? plan.name : "…"}</h2><p className="os-side-price">{plan ? <Tween value={total} format={(n) => money.format(n)} /> : "…"}<small>{form.period === "YEARLY" ? "/año" : "/mes"}</small></p>{form.period === "YEARLY" && plan && <p className="os-side-save">Ahorras {money.format(plan.monthly * 2)} frente a pagar mes a mes</p>}
       <ul>{plan?.features.map((feature) => <li key={feature}>{feature}</li>)}</ul>
-      <div className="os-trust"><p><b>🔒 Pago seguro</b>Procesado por Wompi (Bancolombia). No guardamos datos de tu tarjeta.</p><p><b>⚡ Activación inmediata</b>Tu barbería queda activa apenas se apruebe el pago.</p><p><b>↺ Sin permanencia</b>Pagas por periodo y renuevas cuando quieras.</p></div></aside>
+      <div className="os-trust"><p><b>Pago seguro</b>Procesado por Wompi (Bancolombia). No guardamos datos de tu tarjeta.</p><p><b>Activación inmediata</b>Tu barbería queda activa apenas se apruebe el pago.</p><p><b>Sin permanencia</b>Pagas por periodo y renuevas cuando quieras.</p></div></aside>
   </main>;
 }
