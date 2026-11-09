@@ -6,7 +6,12 @@ import { TenantService } from '../tenancy/tenant.service';
 import { BlockDto, CreateBookingDto, RescheduleDto } from './dto/booking.dto';
 
 const OPEN_SLOTS = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00'];
-const asDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
+// Solo AAAA-MM-DD y solo días que existen: cualquier otra cosa es un 400, no un error del servidor.
+export const asDate = (date: string) => {
+  const parsed = /^\d{4}-\d{2}-\d{2}$/.test(date ?? '') ? new Date(`${date}T00:00:00.000Z`) : new Date(NaN);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) throw new BadRequestException('La fecha debe tener el formato AAAA-MM-DD.');
+  return parsed;
+};
 const dateKey = (date: Date) => date.toISOString().slice(0, 10);
 // Colombia no tiene horario de verano: la hora de la cita siempre es UTC-5, sin importar dónde corra el servidor.
 const startsAt = (date: Date, time: string) => new Date(`${dateKey(date)}T${time}:00-05:00`).getTime();
@@ -102,7 +107,10 @@ export class BookingService {
   async adminAppointments(shopId: string, date: string, barberId?: string) { return (await this.tenants.client(shopId)).appointment.findMany({ where: { date: asDate(date), ...(barberId && { barberId }) }, include: FULL, orderBy: { time: 'asc' } }); }
   async updateStatus(shopId: string, id: string, status: AppointmentStatus) {
     const db = await this.tenants.client(shopId);
-    if (!(await db.appointment.findUnique({ where: { id } }))) throw new NotFoundException('No encontramos esa cita.');
+    const current = await db.appointment.findUnique({ where: { id } });
+    if (!current) throw new NotFoundException('No encontramos esa cita.');
+    // Una cita cancelada ya soltó su horario (otro cliente pudo tomarlo): reactivarla crearía una doble reserva.
+    if (current.status === AppointmentStatus.CANCELLED && status !== AppointmentStatus.CANCELLED) throw new ConflictException('Una cita cancelada no se puede reactivar: su horario quedó libre. Crea una reserva nueva.');
     // Al cancelar se liberan los slots para que el horario vuelva a estar disponible.
     const updated = await db.$transaction(async (tx) => { if (status === AppointmentStatus.CANCELLED) await tx.scheduleSlot.deleteMany({ where: { appointmentId: id } }); return tx.appointment.update({ where: { id }, data: { status }, include: FULL }); });
     if (status === AppointmentStatus.CANCELLED) this.events.emit('booking.cancelled', { shopId, ...updated });

@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { IsIn, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 import { AdminGuard, ShopId } from '../common/admin.guard';
 import { CURRENCIES } from '../platform/plans';
@@ -21,7 +22,7 @@ class SettingsDto {
 export class ShopController {
   constructor(private readonly shops: ShopService) {}
   @Get('shops/:slug') get(@Param('slug') slug: string) { return this.shops.bySlug(slug); }
-  @Post('shops/:slug/login') login(@Param('slug') slug: string, @Body() body: LoginDto) { return this.shops.login(slug, body.password); }
+  @Throttle({ default: { limit: 10, ttl: 60_000 } }) @Post('shops/:slug/login') login(@Param('slug') slug: string, @Body() body: LoginDto) { return this.shops.login(slug, body.password); }
   @UseGuards(AdminGuard) @Get('admin/shop') settings(@ShopId() shopId: string) { return this.shops.settings(shopId); }
   @UseGuards(AdminGuard) @Patch('admin/shop') update(@ShopId() shopId: string, @Body() body: SettingsDto) { return this.shops.update(shopId, body); }
 }

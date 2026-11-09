@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { BarbershopStatus, PaymentStatus } from '.prisma/platform';
-import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { hashPassword } from '../common/password';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantService } from '../tenancy/tenant.service';
@@ -70,9 +70,12 @@ export class PlatformService {
     if (tx.amount_in_cents !== payment.amountInCents || tx.currency !== payment.currency) { this.logger.warn(`Monto o moneda no coinciden en ${tx.reference}`); throw new BadRequestException('La transacción no coincide con el pago.'); }
     if (payment.status !== PaymentStatus.PENDING || !FINAL.has(tx.status)) return this.status(payment.reference); // idempotente y sin estados intermedios
     await this.prisma.$transaction(async (db) => {
-      await db.payment.update({ where: { id: payment.id }, data: { status: tx.status as PaymentStatus, providerTransactionId: tx.id } });
-      if (tx.status !== 'APPROVED') return;
-      const from = payment.barbershop.paidUntil && payment.barbershop.paidUntil > new Date() ? payment.barbershop.paidUntil : new Date();
+      // El webhook y la consulta desde la página de resultado pueden llegar a la vez: solo el que logra pasar el pago
+      // de PENDING a su estado final extiende la licencia; el otro no hace nada.
+      const claimed = await db.payment.updateMany({ where: { id: payment.id, status: PaymentStatus.PENDING }, data: { status: tx.status as PaymentStatus, providerTransactionId: tx.id } });
+      if (!claimed.count || tx.status !== 'APPROVED') return;
+      const shop = await db.barbershop.findUniqueOrThrow({ where: { id: payment.barbershopId }, select: { paidUntil: true } });
+      const from = shop.paidUntil && shop.paidUntil > new Date() ? shop.paidUntil : new Date();
       const paidUntil = new Date(from); paidUntil.setMonth(paidUntil.getMonth() + PERIODS[payment.period as Period].months);
       await db.barbershop.update({ where: { id: payment.barbershopId }, data: { status: BarbershopStatus.ACTIVE, plan: payment.plan, paidUntil } });
     });
@@ -114,7 +117,9 @@ export class PlatformService {
   }
 
   async login(password: string) {
-    if (!process.env.PLATFORM_PASSWORD || password !== process.env.PLATFORM_PASSWORD) throw new UnauthorizedException('Contraseña incorrecta.');
+    const expected = process.env.PLATFORM_PASSWORD;
+    // Se comparan los hashes en tiempo constante para no filtrar la clave por el tiempo de respuesta.
+    if (!expected || !timingSafeEqual(createHash('sha256').update(password).digest(), createHash('sha256').update(expected).digest())) throw new UnauthorizedException('Contraseña incorrecta.');
     return { accessToken: await this.jwt.signAsync({ role: 'platform' }) };
   }
 

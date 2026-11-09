@@ -70,12 +70,13 @@ Si usas otro puerto para la web, agrégalo a `FRONTEND_URL` en `backend/.env` (l
 | `PUBLIC_SITE_URL` | URL pública del sitio (redirecciones del pago) |
 | `ADMIN_PASSWORD` | Clave inicial del panel de Legacy Barber (solo la usa el seed) |
 | `PLATFORM_PASSWORD` | Clave del panel de la plataforma (`/admin`) |
-| `JWT_SECRET` | Firma de las sesiones |
+| `JWT_SECRET` | Firma de las sesiones. Obligatoria: sin ella la API no arranca |
+| `TRUST_PROXY` | Pon `1` si la API corre detrás de un proxy, para que el límite de intentos vea la IP real |
 | `WOMPI_PUBLIC_KEY`, `WOMPI_INTEGRITY_SECRET`, `WOMPI_EVENTS_SECRET`, `WOMPI_API_URL` | Pagos con Wompi. Sin `WOMPI_PUBLIC_KEY` se usa el modo demo |
 
 Cambia todas las claves de ejemplo antes de publicar.
 
 ## Pruebas
 
-- Unitarias: `npx pnpm@10 test`
+- Unitarias: `npx pnpm@10 test` (incluye las del backend en `backend/test/`; no necesitan base de datos)
 - E2E con Playwright (canal Microsoft Edge): carpeta `qa/`. Requieren la API en :3001 y la web corriendo; revisa el puerto al inicio de cada script.

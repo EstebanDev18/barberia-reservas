@@ -16,17 +16,23 @@ export class BarberService {
     if (!barber) throw new NotFoundException('Barbero no disponible.');
     return barber;
   }
-  async create(shopId: string, data: { name: string; role: string; bio: string }) {
-    // El plan (en la base de la plataforma) pone el tope de barberos activos (Full no tiene tope).
+  // El plan (en la base de la plataforma) pone el tope de barberos activos (Full no tiene tope).
+  private async assertRoom(shopId: string) {
     const shop = await this.platform.barbershop.findUniqueOrThrow({ where: { id: shopId } });
     const plan = PLANS[shop.plan as PlanId];
     const db = await this.tenants.client(shopId);
     if (plan?.barbers && (await db.barber.count({ where: { active: true } })) >= plan.barbers) throw new ForbiddenException(`Tu plan ${plan.name.es} permite hasta ${plan.barbers} barbero${plan.barbers > 1 ? 's' : ''}. Mejora tu plan para sumar más.`);
-    return db.barber.create({ data });
+  }
+  async create(shopId: string, data: { name: string; role: string; bio: string }) {
+    await this.assertRoom(shopId);
+    return (await this.tenants.client(shopId)).barber.create({ data });
   }
   async update(shopId: string, id: string, data: BarberData) {
     const db = await this.tenants.client(shopId);
-    if (!(await db.barber.findUnique({ where: { id } }))) throw new NotFoundException('Barbero no encontrado.');
+    const barber = await db.barber.findUnique({ where: { id } });
+    if (!barber) throw new NotFoundException('Barbero no encontrado.');
+    // Reactivar a un barbero retirado cuenta contra el tope del plan igual que crear uno nuevo.
+    if (data.active === true && !barber.active) await this.assertRoom(shopId);
     if (data.active === false) {
       // No se retira a un barbero con citas por atender: primero se cancelan o se reprograman.
       const today = new Date(`${new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10)}T00:00:00.000Z`);
