@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Legacy Barber | Reservas",
-  description: "Aparta tu silla en Legacy Barber. Sin filas, sin cuentos.",
+  title: "Reservas en línea | BarberOS",
+  description: "Aparta tu silla en línea. Sin filas, sin cuentos.",
 };
 
 export default function RootLayout({ children }) {

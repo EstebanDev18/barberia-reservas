@@ -6,7 +6,7 @@
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
     "build": "nest build",
-    "test": "node -r ts-node/register/transpile-only --test test/fixes.test.ts",
+    "test": "node -r ts-node/register/transpile-only --test test/fixes.test.ts test/renewal.test.ts",
     "prisma:generate": "prisma generate --schema prisma/platform/schema.prisma && prisma generate --schema prisma/tenant/schema.prisma",
     "db:migrate:platform": "prisma migrate deploy --schema prisma/platform/schema.prisma",
     "db:migrate:tenants": "ts-node scripts/migrate-tenants.ts",

@@ -24,7 +24,9 @@ export default function SoftwarePage() {
     const ctx = gsap.context(() => {
       gsap.to(".os-progress", { scaleX: 1, ease: "none", scrollTrigger: { start: 0, end: "max", scrub: 0.3 } });
       // Con "reducir movimiento" todo sigue funcionando, pero sin desplazamientos grandes ni efectos con el mouse.
-      mm.add({ full: "(prefers-reduced-motion: no-preference)", desktop: "(min-width: 961px)" }, ({ conditions: { full, desktop } }) => {
+      // "all" siempre coincide: sin ella, en un celular con "reducir movimiento" no coincidía ninguna condición, esto no corría
+      // y todo lo marcado con data-os-reveal se quedaba invisible (.os-js lo oculta hasta que la animación lo muestra).
+      mm.add({ all: "all", full: "(prefers-reduced-motion: no-preference)", desktop: "(min-width: 961px)" }, ({ conditions: { full, desktop } }) => {
         const move = (px) => (full ? px : 0);
         gsap.from("[data-hero]", { y: move(40), opacity: 0, duration: 0.9, stagger: 0.1, ease: "power3.out" });
         gsap.from("[data-hero-app]", { y: move(70), rotateX: move(14), opacity: 0, duration: 1.2, delay: 0.25, ease: "power3.out", transformPerspective: 1000 });

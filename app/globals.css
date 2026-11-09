@@ -316,3 +316,10 @@ main[data-theme] { background:var(--asphalt); color:var(--chalk); }
 .hero-visual.bare p.neon { position:relative; bottom:auto; right:auto; z-index:2; max-width:80%; text-align:center; font-size:clamp(30px,4.4vw,66px); line-height:1.1; padding:16px 26px; border-width:3px; }
 .admin-grid .appointment-list { align-content:start; }
 .license-alert { clear:both; padding:14px 18px; border:3px solid var(--error); margin:26px 0 8px; }
+/* Panel: renovar la licencia o cambiar de plan. Reutiliza las tarjetas del selector de tema. */
+.plan-picks .theme-pick b { font:400 24px/1 var(--display); color:var(--yellow); }
+.plan-picks .theme-pick small { font-size:12px; color:var(--muted); font-weight:700; letter-spacing:1px; text-transform:uppercase; }
+.period-row { display:flex; flex-wrap:wrap; gap:12px; margin-top:22px; }
+.period-row button { padding:12px 18px; background:var(--asphalt); color:var(--chalk); border:3px solid var(--steel); font-weight:800; letter-spacing:1.5px; text-transform:uppercase; font-size:12px; }
+.period-row button[aria-pressed="true"] { border-color:var(--chalk); background:var(--chalk); color:var(--asphalt); }
+[data-theme="minimal"] .plan-picks .theme-pick b { color:inherit; }
