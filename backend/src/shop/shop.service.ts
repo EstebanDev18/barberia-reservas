@@ -35,6 +35,11 @@ export class ShopService {
     return { accessToken: await this.jwt.signAsync({ role: 'admin', shopId: shop.id }) };
   }
 
-  async settings(shopId: string) { const shop = await this.prisma.barbershop.findUniqueOrThrow({ where: { id: shopId }, select: SETTINGS }); return { ...shop, open: this.isOpen(shop) }; }
+  async settings(shopId: string) {
+    const shop = await this.prisma.barbershop.findUniqueOrThrow({ where: { id: shopId }, select: SETTINGS });
+    // Moneda en la que se cobra la licencia: la del último pago aprobado (la de la carta puede ser otra).
+    const last = await this.prisma.payment.findFirst({ where: { barbershopId: shopId, status: 'APPROVED' }, orderBy: { createdAt: 'desc' }, select: { currency: true } });
+    return { ...shop, open: this.isOpen(shop), billingCurrency: last?.currency ?? shop.currency };
+  }
   async update(shopId: string, data: ShopSettings) { await this.prisma.barbershop.update({ where: { id: shopId }, data }); return this.settings(shopId); }
 }

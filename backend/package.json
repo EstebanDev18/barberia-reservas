@@ -6,6 +6,7 @@
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
     "build": "nest build",
+    "test": "node -r ts-node/register/transpile-only --test test/fixes.test.ts test/renewal.test.ts",
     "prisma:generate": "prisma generate --schema prisma/platform/schema.prisma && prisma generate --schema prisma/tenant/schema.prisma",
     "db:migrate:platform": "prisma migrate deploy --schema prisma/platform/schema.prisma",
     "db:migrate:tenants": "ts-node scripts/migrate-tenants.ts",
@@ -17,12 +18,14 @@
     "postinstall": "prisma generate --schema prisma/platform/schema.prisma && prisma generate --schema prisma/tenant/schema.prisma"
   },
   "dependencies": {
-    "@nestjs/common": "11.1.6",
-    "@nestjs/config": "4.0.2",
-    "@nestjs/core": "11.1.6",
+    "@nestjs/common": "11.2.9",
+    "@nestjs/config": "4.0.4",
+    "@nestjs/core": "11.2.9",
     "@nestjs/event-emitter": "3.0.1",
     "@nestjs/jwt": "11.0.1",
-    "@nestjs/platform-express": "11.1.6",
+    "@nestjs/throttler": "6.7.1",
+    "helmet": "8.3.0",
+    "@nestjs/platform-express": "11.2.9",
     "@prisma/client": "6.16.2",
     "class-transformer": "0.5.1",
     "class-validator": "0.14.2",
@@ -33,7 +36,7 @@
   "devDependencies": {
     "@nestjs/cli": "11.0.10",
     "@nestjs/schematics": "11.0.7",
-    "@nestjs/testing": "11.1.6",
+    "@nestjs/testing": "11.2.9",
     "@types/node": "24.5.2",
     "ts-node": "10.9.2",
     "typescript": "5.9.2"

@@ -31,10 +31,12 @@ export default function PaymentResult() {
   }, [result?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const status = result?.status || "PENDING";
-  const tone = error ? "bad" : TONES[status] || "wait", title = error ? r.failedTitle : r.titles[status] || r.titles.PENDING;
+  // Una renovación pagada desde el panel usa la misma página, con otro texto y sin los pasos de bienvenida.
+  const renewal = Boolean(result?.renewal);
+  const tone = error ? "bad" : TONES[status] || "wait", title = error ? r.failedTitle : renewal && status === "APPROVED" ? r.renewedTitle : r.titles[status] || r.titles.PENDING;
   const pending = !error && status === "PENDING";
   const shop = result?.barbershop;
-  const [name, rest] = shop ? r.registered(shop.name) : [];
+  const [name, rest] = shop ? (renewal ? r.renewed : r.registered)(shop.name) : [];
   return <main className="os-center"><section className="os-status-card" ref={cardRef} aria-busy={pending}>
     {pending && <i className="os-pending-bar" aria-hidden="true" />}
     <StatusIcon tone={tone} />
@@ -50,11 +52,11 @@ export default function PaymentResult() {
           <div><dt>{r.page}</dt><dd className="os-mono">/{shop.slug}</dd></div>
           <div><dt>{r.reference}</dt><dd className="os-mono">{result.reference}</dd></div>
         </dl>
-        <ol className="os-next">{r.next.map(([heading, text]) => <li key={heading}><b>{heading}</b><span>{text}</span></li>)}</ol>
-        <div className="os-wiz-actions"><a className="os-btn os-btn-ghost" href={`/${shop.slug}`} target="_blank" rel="noopener noreferrer">{r.seePage}</a><a className="os-btn os-btn-main" href={`/${shop.slug}/admin`}>{r.enterPanel} <span className="arrow">→</span></a></div></>
+        {!renewal && <ol className="os-next">{r.next.map(([heading, text]) => <li key={heading}><b>{heading}</b><span>{text}</span></li>)}</ol>}
+        <div className="os-wiz-actions"><a className="os-btn os-btn-ghost" href={`/${shop.slug}`} target="_blank" rel="noopener noreferrer">{r.seePage}</a><a className="os-btn os-btn-main" href={`/${shop.slug}/admin`}>{renewal ? r.backToPanel : r.enterPanel} <span className="arrow">→</span></a></div></>
       : <>
         <p className="os-muted">{r.notActivated}</p>
         <dl className="os-review"><div><dt>{r.reference}</dt><dd className="os-mono">{result.reference}</dd></div></dl>
-        <div className="os-wiz-actions"><a className="os-btn os-btn-ghost" href="/#precios">{r.seePlans}</a><a className="os-btn os-btn-main" href="/registro">{r.retry} <span className="arrow">→</span></a></div></>}
+        <div className="os-wiz-actions"><a className="os-btn os-btn-ghost" href="/#precios">{r.seePlans}</a><a className="os-btn os-btn-main" href={renewal && shop ? `/${shop.slug}/admin` : "/registro"}>{renewal ? r.backToPanel : r.retry} <span className="arrow">→</span></a></div></>}
   </section></main>;
 }

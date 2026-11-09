@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { BarbershopStatus, PaymentStatus } from '.prisma/platform';
-import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { hashPassword } from '../common/password';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantService } from '../tenancy/tenant.service';
@@ -50,6 +50,32 @@ export class PlatformService {
     return { barbershop: { id: shop.id, name: shop.name, slug: shop.slug }, reference: payment.reference, checkoutUrl: this.checkoutUrl(payment.reference, amountInCents, currency, shop) };
   }
 
+  // La licencia se cobra en la moneda del último pago aprobado (la de la carta puede ser otra: la cambia la barbería en su panel).
+  async billingCurrency(shop: { id: string; currency: string }): Promise<Currency> {
+    const last = await this.prisma.payment.findFirst({ where: { barbershopId: shop.id, status: PaymentStatus.APPROVED }, orderBy: { createdAt: 'desc' }, select: { currency: true } });
+    const currency = (last?.currency ?? shop.currency) as Currency;
+    return CURRENCIES.includes(currency) ? currency : 'COP';
+  }
+
+  // Renovar (o cambiar de plan) desde el panel de una barbería que ya pagó alguna vez. Crea otro pago sobre la misma barbería:
+  // al aprobarse, applyTransaction suma el periodo a partir del vencimiento actual (o de hoy si ya venció) y aplica el plan elegido.
+  async renew(shopId: string, plan: PlanId, period: Period) {
+    const shop = await this.prisma.barbershop.findUnique({ where: { id: shopId } });
+    if (!shop || shop.status !== BarbershopStatus.ACTIVE) throw new NotFoundException('Barbería no encontrada.');
+    const currency = await this.billingCurrency(shop);
+    if (!this.ready(currency) && !this.demoFor(currency)) throw new BadRequestException('Los pagos en esta moneda no están configurados todavía.');
+    // No se puede bajar a un plan con menos barberos de los que hoy atienden: primero hay que retirar los que sobran.
+    const cap = PLANS[plan].barbers;
+    if (cap) {
+      const active = await (await this.tenants.client(shopId)).barber.count({ where: { active: true } });
+      if (active > cap) throw new BadRequestException(`El plan ${PLANS[plan].name.es} permite hasta ${cap} barbero${cap > 1 ? 's' : ''} y tienes ${active} activos. Retira ${active - cap} antes de cambiar de plan.`);
+    }
+    const amountInCents = toMinor(priceOf(plan, period, currency));
+    // BOS-R: la R marca el pago como renovación para que la página de resultado no lo presente como un registro nuevo.
+    const payment = await this.prisma.payment.create({ data: { reference: `BOS-R-${Date.now()}-${randomBytes(3).toString('hex')}`, barbershopId: shop.id, plan, period, amountInCents, currency, provider: providerFor(currency) } });
+    return { reference: payment.reference, amountInCents, currency, checkoutUrl: this.checkoutUrl(payment.reference, amountInCents, currency, shop) };
+  }
+
   private async freeSlug(name: string) {
     const base = slugify(name);
     for (let n = 1; ; n++) { const slug = n === 1 ? base : `${base}-${n}`; if (!RESERVED.has(slug) && !(await this.prisma.barbershop.findUnique({ where: { slug } }))) return slug; }
@@ -70,9 +96,12 @@ export class PlatformService {
     if (tx.amount_in_cents !== payment.amountInCents || tx.currency !== payment.currency) { this.logger.warn(`Monto o moneda no coinciden en ${tx.reference}`); throw new BadRequestException('La transacción no coincide con el pago.'); }
     if (payment.status !== PaymentStatus.PENDING || !FINAL.has(tx.status)) return this.status(payment.reference); // idempotente y sin estados intermedios
     await this.prisma.$transaction(async (db) => {
-      await db.payment.update({ where: { id: payment.id }, data: { status: tx.status as PaymentStatus, providerTransactionId: tx.id } });
-      if (tx.status !== 'APPROVED') return;
-      const from = payment.barbershop.paidUntil && payment.barbershop.paidUntil > new Date() ? payment.barbershop.paidUntil : new Date();
+      // El webhook y la consulta desde la página de resultado pueden llegar a la vez: solo el que logra pasar el pago
+      // de PENDING a su estado final extiende la licencia; el otro no hace nada.
+      const claimed = await db.payment.updateMany({ where: { id: payment.id, status: PaymentStatus.PENDING }, data: { status: tx.status as PaymentStatus, providerTransactionId: tx.id } });
+      if (!claimed.count || tx.status !== 'APPROVED') return;
+      const shop = await db.barbershop.findUniqueOrThrow({ where: { id: payment.barbershopId }, select: { paidUntil: true } });
+      const from = shop.paidUntil && shop.paidUntil > new Date() ? shop.paidUntil : new Date();
       const paidUntil = new Date(from); paidUntil.setMonth(paidUntil.getMonth() + PERIODS[payment.period as Period].months);
       await db.barbershop.update({ where: { id: payment.barbershopId }, data: { status: BarbershopStatus.ACTIVE, plan: payment.plan, paidUntil } });
     });
@@ -85,7 +114,7 @@ export class PlatformService {
     const payment = await this.prisma.payment.findUnique({ where: { reference }, include: { barbershop: true } });
     if (!payment) throw new NotFoundException('Pago no encontrado.');
     const { barbershop: shop } = payment;
-    return { reference, status: payment.status, plan: payment.plan, period: payment.period, amountInCents: payment.amountInCents, currency: payment.currency, provider: payment.provider, barbershop: { name: shop.name, slug: shop.slug, status: shop.status, paidUntil: shop.paidUntil } };
+    return { reference, renewal: reference.startsWith('BOS-R-'), status: payment.status, plan: payment.plan, period: payment.period, amountInCents: payment.amountInCents, currency: payment.currency, provider: payment.provider, barbershop: { name: shop.name, slug: shop.slug, status: shop.status, paidUntil: shop.paidUntil } };
   }
 
   // La redirección de Wompi trae ?id=; se confirma preguntándole a Wompi, nunca creyéndole al navegador.
@@ -114,7 +143,9 @@ export class PlatformService {
   }
 
   async login(password: string) {
-    if (!process.env.PLATFORM_PASSWORD || password !== process.env.PLATFORM_PASSWORD) throw new UnauthorizedException('Contraseña incorrecta.');
+    const expected = process.env.PLATFORM_PASSWORD;
+    // Se comparan los hashes en tiempo constante para no filtrar la clave por el tiempo de respuesta.
+    if (!expected || !timingSafeEqual(createHash('sha256').update(password).digest(), createHash('sha256').update(expected).digest())) throw new UnauthorizedException('Contraseña incorrecta.');
     return { accessToken: await this.jwt.signAsync({ role: 'platform' }) };
   }
 
